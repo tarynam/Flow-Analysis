@@ -1,0 +1,679 @@
+---
+title: "Cytokine_Analysis"
+author: "Taryn McLaughlin"
+date: "9/21/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.height = 10.5, fig.width = 7.5)
+
+library(dplyr)
+library(reshape2)
+Cytokine<-read.csv("/Applications/Old Computer/Day Lab/Data_Flow/Clean/Background Subtracted Cytokine.csv")
+Cytokine <- mutate(Cytokine, G_plus = G_4_13_x + G_4_x_x + G_x_13_x + G_x_x_x) %>%
+    mutate(T_plus = x_4_13_T + x_4_x_T + x_x_13_T + x_x_x_T) %>%
+    mutate(G_T_plus = G_4_x_T + G_x_13_T + G_x_x_T)%>%
+    mutate(IL4_plus = G_4_x_T + G_4_x_x + x_4_x_T + x_4_x_x) %>%
+    mutate(IL13_plus = G_x_13_T + G_x_13_x + x_x_13_T + x_x_13_x) %>%
+    mutate(IL4_IL13_plus = G_4_13_x + x_4_13_T + x_4_13_x)
+Cytokine$TB<-factor(Cytokine$TB, levels=c("N","HC","LTBI","TB"))
+Cytokine$SM<-factor(Cytokine$SM, levels=c("N","X","SM"))
+```
+
+#Statistical Analysis
+I wrote a function called pvals which evaluates the relevant two sample two-tailed  p-values using the non-parametric Mann Whitney test (the command is wilcox.test in R). The function then corrects for multiple comparisons in two ways. The first uses  a Bonferonni correction to control the Family Wise Error Rate. The second controls the False Discovery Rate, the expected proportion of false discoveries amongst the rejected hypotheses. The false discovery rate is a less stringent condition than the family-wise error rate, so these methods are more powerful than the others. The function is below if you would like to see the details.
+
+```{r p-value function, echo=TRUE}
+pvals<-function(data, column){
+    
+    data<-filter(data, SM!="N")
+    data$SM<-factor(data$SM, levels=c("X","SM"))
+    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+    
+    x<-split(data,data$TB) 
+    A<-lapply(x, function(g) wilcox.test(g[,column]~g[,"SM"]))
+    
+    y<-split(data,data$SM) 
+    B<-lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "LTBI")))
+    C<- lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("LTBI", "TB")))
+    D<- lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "TB")))
+    
+    labels<-c("HC SM+ to HC SM-", "LTBI SM+ to LTBI SM-", "TB SM+ to TB SM-",
+              "HC SM+ to LTBI SM+", "LTBI SM+ to TB SM+", "HC SM+ to TB SM+",
+              "HC SM- to LTBI SM-", "LTBI SM- to TB SM-", "HC SM- to TB SM-"
+    )
+    pvals<-c(A$HC$p.value, A$LTBI$p.value, A$TB$p.value,
+             B$SM$p.value, C$SM$p.value,  D$SM$p.value,
+             B$X$p.value,  C$X$p.value,   D$X$p.value)
+    
+    bonf_adj_pvals<-round(p.adjust(pvals, method="bonferroni"), 4)
+    
+    fdr_adj_pvals<-round(p.adjust(pvals, method="fdr"), 4)
+    
+    table<-(cbind(labels, round(pvals, 4), bonf_adj_pvals, fdr_adj_pvals))
+    colnames(table)<-c("Comparison", paste(column,"p-values"," "), 
+                       "Bonferonni Corrected p-values", "FDR Corrected p-vales")
+    table
+}
+```
+
+#Boolean Graphs
+The first graph is just meant to give a snapshot of all the data at once to see if there are weird anomalous data points that we will have to examine. I did not include all the individual data points on any of the graphs because it made it incredibly cluttered looking, however I did allow outliers to display.
+
+```{r Boolean Graphs, cache=TRUE, echo=FALSE, warning=FALSE}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+Boolean<-select(Cytokine, Donor, TB, SM, Stim, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T, G_4_x_x, G_x_13_x,
+                x_4_x_T, x_x_13_T, G_x_x_T , G_x_x_x, x_x_x_T,  x_4_13_x, x_4_x_x, x_x_13_x)
+
+melt<-melt(Boolean,id.vars=c("TB","SM", "Stim"))
+melt$value<-as.numeric(melt$value)
+melt<-filter(melt, !(is.na(value)))
+melt<-filter(melt, !(value<0))
+melt$label = factor(melt$variable,levels=c("G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", 
+                                           "G_x_13_x","x_4_x_T","x_x_13_T", "G_x_x_T" , "G_x_x_x","x_x_x_T",  
+                                           "x_4_13_x","x_4_x_x", "x_x_13_x"))
+melt<-filter(melt, !is.na(label))
+
+#all the boolean plots
+g<-ggplot(melt, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(Stim~TB, scale="free")+
+    labs(title="Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+    
+#subset by stim
+data<-filter(melt, Stim=="PMA")
+g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="free")+
+    labs(title="PMA Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)");
+
+data<-filter(melt, Stim=="WCL")
+g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="free")+
+    labs(title="WCL Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)");data<-filter(melt, Stim=="PEP")
+
+data<-filter(melt, Stim=="PEP")
+g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="free")+
+    labs(title="PEP Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)");
+
+data<-filter(melt, Stim=="SEA")
+g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="free")+
+    labs(title="SEA Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)");
+
+data<-filter(melt, Stim=="SWAP")
+g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="free")+
+    labs(title="SWAP Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="Cytokine Subsets",
+         y="Frequency of Cytokine+ CD4+ T cells (%)");
+```
+
+#T cell Lineage Specific Grouped Analysis
+These are my standard lineage specific groups. 
+
+```{r TH, echo=FALSE, fig.cap="Breakdown of Cytokine Definitions"}
+knitr::include_graphics("/Applications/Old Computer/Day Lab/Data_Flow/TH_Group_Explanation.png")
+```
+
+```{r Grouped TH Graphs, echo=FALSE}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+TH<-select(Cytokine, Donor, TB, SM, Stim, Cyt.Freq, TH1.Freq, TH1.2.Freq, TH2.Freq)
+
+melt<-melt(TH,id.vars=c("TB","SM", "Stim"))
+melt$value<-as.numeric(melt$value)
+melt<-filter(melt, !(is.na(value)))
+melt<-filter(melt, !(value<0))
+melt$label = factor(melt$variable,levels=c("Cyt.Freq", "TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
+melt<-filter(melt, !is.na(label))
+
+
+##### PMA
+data<-filter(melt, Stim=="PMA")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(TH, Stim=="PMA")
+kable(pvals(data, "TH1.Freq"), caption = "Non Specific CD4+ T cell Responses")
+kable(pvals(data, "TH2.Freq"))
+kable(pvals(data, "TH1.2.Freq"))
+
+
+##### WCL
+data<-filter(melt, Stim=="WCL")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(TH, Stim=="WCL")
+kable(pvals(data, "TH1.Freq"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
+kable(pvals(data, "TH2.Freq"))
+kable(pvals(data, "TH1.2.Freq"))
+
+##### Peptide
+data<-filter(melt, Stim=="PEP")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(TH, Stim=="PEP")
+kable(pvals(data, "TH1.Freq"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals(data, "TH2.Freq"))
+kable(pvals(data, "TH1.2.Freq"))
+
+```
+\newpage
+
+
+#Individual Cytokines
+These are the frequencies of cells producing individual cytokines without considering whether or not they are single positive, double positive etc. So any cell producing IL-4 is included in the IL-4 analysis.
+
+```{r Individual Cytokines but not single producers}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+cyt<-select(Cytokine, Donor, TB, SM, Stim, IFNg, TNFa, IL4, IL13)
+
+melt<-melt(cyt,id.vars=c("TB","SM", "Stim"))
+melt$value<-as.numeric(melt$value)
+melt<-filter(melt, !(is.na(value)))
+melt<-filter(melt, !(value<0))
+melt$label = factor(melt$variable,levels=c("IFNg", "TNFa", "IL4", "IL13"))
+melt<-filter(melt, !is.na(label))
+
+#### PMA
+data<-filter(melt, Stim=="PMA")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(cyt, Stim=="PMA")
+kable(pvals(data, "IFNg"), caption = "Non Specific CD4 T cell Responses")
+kable(pvals(data, "TNFa"))
+kable(pvals(data, "IL4"))
+kable(pvals(data, "IL13"))
+
+#### WCL
+data<-filter(melt, Stim=="WCL")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(cyt, Stim=="WCL")
+kable(pvals(data, "IFNg"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
+kable(pvals(data, "TNFa"))
+kable(pvals(data, "IL4"))
+kable(pvals(data, "IL13"))
+
+
+#### Peptide
+data<-filter(melt, Stim=="PEP")
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ T cell Responses", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(cyt, Stim=="PEP")
+kable(pvals(data, "IFNg"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals(data, "TNFa"))
+kable(pvals(data, "IL4"))
+kable(pvals(data, "IL13"))
+
+```
+
+#True Single and Double Cytokine Positive CD4+ T Cells
+These are the frequencies of cells truly ONLY producing:  
+1. IFNg or TNFa or the combination of both AND NOT IL4 or IL13  
+2. IL-4 or IL-13 or the combination of both AND NOT IFNg or TNFa  
+These are the subgroups within the grouped TH1 vs TH2 lineage analysis. They are essentially the last 6 groups of the boolean data.
+
+```{r Single and Double Producers Lin Spec graphs, echo=FALSE}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+SP_lin<-rename(Cytokine, G_single =  G_x_x_x, T_single = x_x_x_T, IL4_single = x_4_x_x, IL13_single = x_x_13_x, 
+               G_T = G_x_x_T, IL4_IL13 = x_4_13_x) %>%
+    select(Donor, TB, SM, Stim, G_single, T_single, IL4_single, IL13_single, G_T, IL4_IL13)
+
+melt<-melt(SP_lin,id.vars=c("TB","SM", "Stim"))
+melt$value<-as.numeric(melt$value)
+melt<-filter(melt, !(is.na(value)))
+melt<-filter(melt, !(value<0))
+melt$label = factor(melt$variable,levels=c("G_single", "T_single", "G_T", "IL4_single", "IL13_single", "IL4_IL13"))
+melt<-filter(melt, !is.na(label))
+
+#### PMA
+# Th1 plots
+data<-filter(melt, Stim=="PMA" & label %in% c("G_single", "T_single", "G_T"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non-Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="PMA" & label %in% c("IL4_single", "IL13_single", "IL4_IL13"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non-Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_lin, Stim=="PMA")
+kable(pvals(data, "G_single"), caption = "Non-Specific CD4+ T cell Responses")
+kable(pvals(data, "T_single")) 
+kable(pvals(data,"G_T"))
+kable(pvals(data, "IL4_single"))
+kable(pvals(data, "IL13_single")) 
+kable(pvals(data, "IL4_IL13"))
+
+
+#### WCL
+# Th1 plots
+data<-filter(melt, Stim=="WCL" & label %in% c("G_single", "T_single", "G_T"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="WCL" & label %in% c("IL4_single", "IL13_single", "IL4_IL13"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_lin, Stim=="WCL")
+kable(pvals(data, "G_single"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals(data, "T_single")) 
+kable(pvals(data,"G_T"))
+kable(pvals(data, "IL4_single"))
+kable(pvals(data, "IL13_single")) 
+kable(pvals(data, "IL4_IL13"))
+
+
+#### PEP
+# Th1 plots
+data<-filter(melt, Stim=="PEP" & label %in% c("G_single", "T_single", "G_T"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="PEP" & label %in% c("IL4_single", "IL13_single", "IL4_IL13"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_lin, Stim=="PEP")
+kable(pvals(data, "G_single"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals(data, "T_single")) 
+kable(pvals(data,"G_T"))
+kable(pvals(data, "IL4_single"))
+kable(pvals(data, "IL13_single")) 
+kable(pvals(data, "IL4_IL13"))
+
+```
+
+\newpage
+
+#Lineage "Agnostic" Single and Double Cytokine Positive CD4+ T Cells
+I don't really believe that this is an appropriate way to look at the data because the cells are technically shared between some of these groupings, but I'm almost certain someone would ask the question "What if you didn't consider Il-4 and IL-13 in defining Gamma and TNF single and double positive cells" so I did it for them. 
+
+```{r TH1, echo=FALSE, fig.cap="Breakdown of TH1 Cytokine Definitions"}
+knitr::include_graphics("/Applications/Old Computer/Day Lab/Data_Flow/TH1 plus explanations.png")
+```
+
+```{r TH2, echo=FALSE, fig.cap="Breakdown of TH2 Cytokine Definitions"}
+knitr::include_graphics("/Applications/Old Computer/Day Lab/Data_Flow/TH2 plus explanations.png")
+```
+
+```{r Single and Double Producers Lin Ag graphs, echo=FALSE}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+
+SP_Ag<-select(Cytokine, Donor, TB, SM, Stim, G_plus, T_plus, IL4_plus, IL13_plus, G_T_plus, IL4_IL13_plus)
+melt<-melt(SP_Ag,id.vars=c("TB","SM", "Stim"))
+melt$value<-as.numeric(melt$value)
+melt<-filter(melt, !(is.na(value)))
+melt<-filter(melt, !(value<0))
+melt$label = factor(melt$variable,levels=c("G_plus", "T_plus", "G_T_plus", "IL4_plus", "IL13_plus", "IL4_IL13_plus"))
+melt<-filter(melt, !is.na(label))
+
+
+### PMA
+#TH1 plots
+data<-filter(melt, Stim=="PMA" & label %in% c("G_plus", "T_plus", "G_T_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="PMA" & label %in% c("IL4_plus", "IL13_plus", "IL4_IL13_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_Ag, Stim=="PMA")
+kable(pvals(data, "G_plus"), caption = "Non Specific CD4+ T cell Responses")
+kable(pvals(data, "T_plus"))
+kable(pvals(data, "G_T_plus"))
+kable(pvals(data, "IL4_plus"))
+kable(pvals(data, "IL13_plus"))
+kable(pvals(data, "IL4_IL13_plus"))
+
+
+### WCL
+#TH1 plots
+data<-filter(melt, Stim=="WCL" & label %in% c("G_plus", "T_plus", "G_T_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="WCL" & label %in% c("IL4_plus", "IL13_plus", "IL4_IL13_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_Ag, Stim=="WCL")
+kable(pvals(data, "G_plus"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals(data, "T_plus"))
+kable(pvals(data, "G_T_plus"))
+kable(pvals(data, "IL4_plus"))
+kable(pvals(data, "IL13_plus"))
+kable(pvals(data, "IL4_IL13_plus"))
+
+
+
+### Peptide
+#TH1 plots
+data<-filter(melt, Stim=="PEP" & label %in% c("G_plus", "T_plus", "G_T_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+#TH2 plots
+data<-filter(melt, Stim=="PEP" & label %in% c("IL4_plus", "IL13_plus", "IL4_IL13_plus"))
+g<-ggplot(data, aes(x=SM, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_x_discrete(breaks=c("N","X","SM"),
+                     labels=c("Naive", "SM(-)", "SM(+)"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(label~TB, scale="free")+
+    labs(title="Mtb Peptide Specific CD4+ T cell Cytokine Frequencies", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Frequency of Cytokine+ CD4+ T cells (%)")
+
+data<-filter(SP_Ag, Stim=="PEP")
+kable(pvals(data, "G_plus"), caption = "Mtb Peptide Specific CD4+ T cell Responses")
+kable(pvals(data, "T_plus"))
+kable(pvals(data, "G_T_plus"))
+kable(pvals(data, "IL4_plus"))
+kable(pvals(data, "IL13_plus"))
+kable(pvals(data, "IL4_IL13_plus"))
+```
+
+
+
+
+
