@@ -4,6 +4,9 @@ output:
   html_document: default
   html_notebook: default
 ---
+
+
+```{r}
 library(dplyr)
 library(reshape2)
 Boolean<-select(Cytokine, Donor, TB, SM, Stim, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T, G_4_x_x, G_x_13_x,
@@ -42,9 +45,7 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          caption="",
          x="TB and Helminth Status",
          y="Frequency of Cytokine+ CD4+ T cells")
-
-
-
+```
 
 
 ```{r}
