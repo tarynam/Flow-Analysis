@@ -6,86 +6,188 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(fig.height = 10.5, fig.width = 7.5)
 
+source("/Users/tarynam/Desktop/tryna function.R")
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
+data<-read.csv("CD4_Cytokine_clean.csv")
+    data$TB<-factor(data$TB, levels=c("N","HC","LTBI","TB"))
+    data$SM<-factor(data$SM, levels=c("N","X","SM"))
+CD4<-data  
+
+data<-read.csv("CD8_Cytokine_clean.csv")
+    data$TB<-factor(data$TB, levels=c("N","HC","LTBI","TB"))
+    data$SM<-factor(data$SM, levels=c("N","X","SM"))
+CD8<-data  
+
+data<-read.csv("CD4_MFI_clean.csv")
+    data$TB<-factor(data$TB, levels=c("N","HC","LTBI","TB"))
+    data$SM<-factor(data$SM, levels=c("N","X","SM"))
+MFI<-data
+
+data<-read.csv("ICS_Compass_scores_complete.csv")
+    data$TB<-factor(data$TB, levels=c("N","HC","LTBI","TB"))
+    data$SM<-factor(data$SM, levels=c("N","X","SM"))
+Compass<-data
+
+data<-read.csv("GD_Cytokine_clean.csv")
+    data$TB<-factor(data$TB, levels=c("N","HC","LTBI","TB"))
+    data$SM<-factor(data$SM, levels=c("N","X","SM"))
+GD<-data
+
+data<-read.csv("ICS_Donor_Info_clean.csv")
+data$TB<-gsub("BCG|Unknown", "Naïve", data$TB)
+data$TB<-factor(data$TB, levels=c("Naïve","Healthy Control","LTBI","Active TB"))
+data$SM<-gsub("US|Not US|Unknown", "Naïve", data$SM)
+data$SM<-factor(data$SM, levels=c("Naïve","Negative","Schisto+"))
+Donor<-data
+```
+
+```{r narrow down Yerkes Donors}
 library(dplyr)
-library(reshape2)
-Cytokine<-read.csv("/Applications/Old Computer/Day Lab/Data_Flow/Clean/Background Subtracted Cytokine.csv")
-Cytokine <- mutate(Cytokine, G_plus = G_4_13_x + G_4_x_x + G_x_13_x + G_x_x_x) %>%
-    mutate(T_plus = x_4_13_T + x_4_x_T + x_x_13_T + x_x_x_T) %>%
-    mutate(G_T_plus = G_4_x_T + G_x_13_T + G_x_x_T)%>%
-    mutate(IL4_plus = G_4_x_T + G_4_x_x + x_4_x_T + x_4_x_x) %>%
-    mutate(IL13_plus = G_x_13_T + G_x_13_x + x_x_13_T + x_x_13_x) %>%
-    mutate(IL4_IL13_plus = G_4_13_x + x_4_13_T + x_4_13_x)
-Cytokine$TB<-factor(Cytokine$TB, levels=c("N","HC","LTBI","TB"))
-Cytokine$SM<-factor(Cytokine$SM, levels=c("N","X","SM"))
+mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_MIMOSA_Complete.csv")
+HD<-filter(mimosa, grepl("HD", mimosa$Sample))%>%
+    filter(Stim!="PMA")
+HDscores<-aggregate(score~Donor, HD, FUN=sum)
+HDkeep<-head(arrange(HDscores, score), 10)
+#382 479 487 are BCG
+HDremove<-HD$Donor[!(HD$Donor %in% HDkeep$Donor)]
+CD4<-dplyr::filter(CD4, !(Donor %in% HDremove))
+MFI<-dplyr::filter(MFI, !(Donor %in% HDremove))
+Compass<-dplyr::filter(Compass, !(Donor %in% HDremove))
+Donor<-dplyr::filter(Donor, !(Donor %in% HDremove))
+```
+
+```{r viability and cell counts}
+Donor$TB[grepl("HD", Donor$StudyID)==TRUE]<-"Yerkes"
+palette.four<-c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b")
+ggplot(Donor, aes(x=SM, y=Viability, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB, scales="free")+
+    labs(title="Viability", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Live Cells (%)")
+
+ggplot(Donor, aes(x=SM, y=Cells.Vial, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB, scales="free")+
+    labs(title="Cell Counts", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Cells/mL)")
 ```
 
 #Statistical Analysis
-I wrote a function called pvals which evaluates the relevant two sample two-tailed  p-values using the non-parametric Mann Whitney test (the command is wilcox.test in R). The function then corrects for multiple comparisons in two ways. The first uses  a Bonferonni correction to control the Family Wise Error Rate. The second controls the False Discovery Rate, the expected proportion of false discoveries amongst the rejected hypotheses. The false discovery rate is a less stringent condition than the family-wise error rate, so these methods are more powerful than the others. The function is below if you would like to see the details.
+I wrote a function called pvals_helminth which evaluates the relevant two sample two-tailed  p-values using the non-parametric Mann Whitney test (the command is wilcox.test in R). The function then corrects for multiple comparisons by controlling the False Discovery Rate, the expected proportion of false discoveries amongst the rejected hypotheses.
 
 ```{r p-value function, echo=TRUE}
-pvals<-function(data, column){
+# a function to evaluate differences in the expression of a marker (designated by the "column" argument) between disease groups
+pvals_helminth<-function(data, column){
     
-    data<-filter(data, SM!="N")
-    data$SM<-factor(data$SM, levels=c("X","SM"))
-    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+    x<-split(data,data$TB) #creates individual dataframes for each level of TB
+    #does a wilcox test for the column of interest comparing SM- to SM+ within each level of TB
+    A<-lapply(x, function(g) wilcox.test(g[,column]~g[,"SM"], exact=FALSE))
     
-    x<-split(data,data$TB) 
-    A<-lapply(x, function(g) wilcox.test(g[,column]~g[,"SM"]))
-    
-    y<-split(data,data$SM) 
+    y<-split(data,data$SM) #creates two dataframes for SM- and SM+
+    #each lapply does a wilcox test on subsets these dataframes to compare 2 levels of TB
+    #stores the output in a variable. So B will contain the comparison of HC to LTBI for both SM- and SM+
     B<-lapply(y, function(g) 
-        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "LTBI")))
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "LTBI"), exact=FALSE))
     C<- lapply(y, function(g) 
-        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("LTBI", "TB")))
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("LTBI", "TB"), exact=FALSE))
     D<- lapply(y, function(g) 
-        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "TB")))
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "TB"), exact=FALSE))
     
+    #To keep track of all the p-values... these should match the order below
     labels<-c("HC SM+ to HC SM-", "LTBI SM+ to LTBI SM-", "TB SM+ to TB SM-",
               "HC SM+ to LTBI SM+", "LTBI SM+ to TB SM+", "HC SM+ to TB SM+",
               "HC SM- to LTBI SM-", "LTBI SM- to TB SM-", "HC SM- to TB SM-"
     )
+    
+    #extract the p-values from all the stored wilcox tests
     pvals<-c(A$HC$p.value, A$LTBI$p.value, A$TB$p.value,
              B$SM$p.value, C$SM$p.value,  D$SM$p.value,
              B$X$p.value,  C$X$p.value,   D$X$p.value)
     
-    bonf_adj_pvals<-round(p.adjust(pvals, method="bonferroni"), 4)
-    
+    #adjusts the p-values using the false discovery rate strategy
     fdr_adj_pvals<-round(p.adjust(pvals, method="fdr"), 4)
     
-    table<-(cbind(labels, round(pvals, 4), bonf_adj_pvals, fdr_adj_pvals))
+    #create a table with the output
+    table<-(cbind(labels, round(pvals, 4), fdr_adj_pvals))
     colnames(table)<-c("Comparison", paste(column,"p-values"," "), 
-                       "Bonferonni Corrected p-values", "FDR Corrected p-vales")
-    table
+                       "FDR Corrected")
+    table #return the table
 }
+```
+
+#Compass Graphs
+```{r}
+library(dplyr)
+DF<-dplyr::filter(Compass, TB != "N" & Stim == "WCL" & celltype =="CD4")
+ggplot(DF, aes(x=SM, y=FS, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=4)+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values = c("#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+      theme(plot.title = element_text(hjust = 0.5)) +
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    facet_grid(~TB, scales="free")+
+    labs(title="WCL-Specific CD4+ T cell Response", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Functionality Score")
+ggplot(DF, aes(x=SM, y=PFS, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_fill_manual(values = c("#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB, scales="free")+
+    labs(title="WCL-Specific CD4+ T cell Response", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyfunctionality Score")
+
+DF2<-merge(DF, dplyr::select(Donor, Donor, QFT))
+ggplot(DF2, aes(x=QFT, y=FS, col=SM))+geom_point()+facet_grid(~TB, scales = "free")+geom_smooth(method="lm")
 ```
 
 #Boolean Graphs
 The first graph is just meant to give a snapshot of all the data at once to see if there are weird anomalous data points that we will have to examine. I did not include all the individual data points on any of the graphs because it made it incredibly cluttered looking, however I did allow outliers to display.
-
 ```{r Boolean Graphs, cache=TRUE, echo=FALSE, warning=FALSE}
 library(dplyr)
+library(tidyr)
 library(reshape2)
 library(ggplot2)
-Boolean<-select(Cytokine, Donor, TB, SM, Stim, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T, G_4_x_x, G_x_13_x,
-                x_4_x_T, x_x_13_T, G_x_x_T , G_x_x_x, x_x_x_T,  x_4_13_x, x_4_x_x, x_x_13_x)
 
-melt<-melt(Boolean,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
-melt$label = factor(melt$variable,levels=c("G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", 
-                                           "G_x_13_x","x_4_x_T","x_x_13_T", "G_x_x_T" , "G_x_x_x","x_x_x_T",  
-                                           "x_4_13_x","x_4_x_x", "x_x_13_x"))
-melt<-filter(melt, !is.na(label))
+Boolean<-dplyr::select(CD4, Donor, TB, SM, Stim, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T, G_4_x_x, G_x_13_x, x_4_x_T, x_x_13_T, G_x_x_T , G_x_x_x, x_x_x_T,  x_4_13_x, x_4_x_x, x_x_13_x)%>%
+    dplyr::filter(TB!="N")
+
+melt<-melt(Boolean,id.vars=c("Donor","TB","SM", "Stim"))
 
 #all the boolean plots
-g<-ggplot(melt, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+ggplot(melt, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1)) + 
     scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
     scale_alpha_manual(values=c(0.5,0.5,1))+
     theme_bw()+ theme(legend.position="none")+
@@ -98,75 +200,57 @@ g + geom_boxplot(size=1, position=position_dodge(width = 1)) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
     
 #subset by stim
-data<-filter(melt, Stim=="PMA")
-g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(TB~., scale="free")+
-    labs(title="PMA Cytokine Frequencies", 
-         subtitle="",
-         caption="",
-         x="Cytokine Subsets",
-         y="Frequency of Cytokine+ CD4+ T cells (%)");
-
-data<-filter(melt, Stim=="WCL")
-g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(TB~., scale="free")+
-    labs(title="WCL Cytokine Frequencies", 
-         subtitle="",
-         caption="",
-         x="Cytokine Subsets",
-         y="Frequency of Cytokine+ CD4+ T cells (%)");data<-filter(melt, Stim=="PEP")
-
-data<-filter(melt, Stim=="PEP")
-g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(TB~., scale="free")+
-    labs(title="PEP Cytokine Frequencies", 
-         subtitle="",
-         caption="",
-         x="Cytokine Subsets",
-         y="Frequency of Cytokine+ CD4+ T cells (%)");
-
-data<-filter(melt, Stim=="SEA")
-g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(TB~., scale="free")+
-    labs(title="SEA Cytokine Frequencies", 
-         subtitle="",
-         caption="",
-         x="Cytokine Subsets",
-         y="Frequency of Cytokine+ CD4+ T cells (%)");
-
 data<-filter(melt, Stim=="SWAP")
-g<-ggplot(data, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+ggplot(data, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#e0e0e0", "#009E73" , "#2166ac", "#b2182b"))+
     scale_alpha_manual(values=c(0.5,0.5,1))+
     theme_bw()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(TB~., scale="free")+
-    labs(title="SWAP Cytokine Frequencies", 
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(TB~., scale="fixed")+
+    labs(title="SWAP-Specific Cytokine Frequencies", 
          subtitle="",
          caption="",
          x="Cytokine Subsets",
          y="Frequency of Cytokine+ CD4+ T cells (%)");
+
+#3 separate booleans for TH1/2 TH1 and TH2
+#TH1-2
+data<-filter(melt, Stim=="SWAP")%>%
+    filter(variable %in% c("G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", "G_x_13_x","x_4_x_T","x_x_13_T"))
+ggplot(data, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1))+
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_grid(TB~., scale="fixed")+
+    coord_cartesian(ylim = c(0,.005))
+
+data<-filter(melt, Stim=="SWAP")%>%
+    filter(variable %in% c("G_x_x_T" , "G_x_x_x","x_x_x_T"))
+g<-ggplot(data, aes(x=variable, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_grid(TB~., scale="fixed")+
+    coord_cartesian(ylim = c(0,.2))
+
+data<-filter(melt, Stim=="SWAP")%>%
+    filter(variable %in% c("x_4_13_x","x_4_x_x", "x_x_13_x"))
+g<-ggplot(data, aes(x=variable, y=value, fill=TB, alpha=SM))
+g + geom_boxplot(size=1, position=position_dodge(width = 1)) + 
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    facet_grid(TB~., scale="fixed")+
+    coord_cartesian(ylim = c(0,.05))
 ```
 
 #T cell Lineage Specific Grouped Analysis
@@ -181,15 +265,10 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(knitr)
-TH<-select(Cytokine, Donor, TB, SM, Stim, Cyt.Freq, TH1.Freq, TH1.2.Freq, TH2.Freq)
+TH<-dplyr::select(CD4, Donor, TB, SM, Stim, Cyt.Freq, Th1.Freq, TH1.2.Freq, TH2.Freq)
 
-melt<-melt(TH,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
-melt$label = factor(melt$variable,levels=c("Cyt.Freq", "TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
-melt<-filter(melt, !is.na(label))
-
+melt<-melt(TH,id.vars=c("TB","SM", "Stim"), measure.vars=c("Cyt.Freq", "Th1.Freq", "TH1.2.Freq", "TH2.Freq"))
+melt$variable = factor(melt$variable,levels=c("Cyt.Freq", "Th1.Freq", "TH1.2.Freq", "TH2.Freq"))
 
 ##### PMA
 data<-filter(melt, Stim=="PMA")
@@ -200,7 +279,7 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
     scale_alpha_manual(values=c(0.5,0.5,1))+
     theme_bw()+ theme(legend.position="none")+
     theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
-    facet_grid(label~TB, scale="free")+
+    facet_grid(variable~TB, scale="free")+
     labs(title="Non Specific CD4+ T cell Responses", 
          subtitle="",
          caption="",
@@ -208,9 +287,9 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(TH, Stim=="PMA")
-kable(pvals(data, "TH1.Freq"), caption = "Non Specific CD4+ T cell Responses")
-kable(pvals(data, "TH2.Freq"))
-kable(pvals(data, "TH1.2.Freq"))
+kable(pvals_helminth(data, "Th1.Freq"), caption = "Non Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "TH2.Freq"))
+kable(pvals_helminth(data, "TH1.2.Freq"))
 
 
 ##### WCL
@@ -222,7 +301,7 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
     scale_alpha_manual(values=c(0.5,0.5,1))+
     theme_bw()+ theme(legend.position="none")+
     theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
-    facet_grid(label~TB, scale="free")+
+    facet_grid(variable~TB, scale="free")+
     labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
          subtitle="",
          caption="",
@@ -230,9 +309,9 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(TH, Stim=="WCL")
-kable(pvals(data, "TH1.Freq"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
-kable(pvals(data, "TH2.Freq"))
-kable(pvals(data, "TH1.2.Freq"))
+kable(pvals_helminth(data, "Th1.Freq"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "TH2.Freq"))
+kable(pvals_helminth(data, "TH1.2.Freq"))
 
 ##### Peptide
 data<-filter(melt, Stim=="PEP")
@@ -243,7 +322,7 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
     scale_alpha_manual(values=c(0.5,0.5,1))+
     theme_bw()+ theme(legend.position="none")+
     theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
-    facet_grid(label~TB, scale="free")+
+    facet_grid(variable~TB, scale="free")+
     labs(title="Mtb Peptide Specific CD4+ T cell Responses", 
          subtitle="",
          caption="",
@@ -251,13 +330,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(TH, Stim=="PEP")
-kable(pvals(data, "TH1.Freq"), caption = "Mtb Peptide Specific CD4 T cell Responses")
-kable(pvals(data, "TH2.Freq"))
-kable(pvals(data, "TH1.2.Freq"))
+kable(pvals_helminth(data, "Th1.Freq"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "TH2.Freq"))
+kable(pvals_helminth(data, "TH1.2.Freq"))
 
 ```
 \newpage
-
 
 #Individual Cytokines
 These are the frequencies of cells producing individual cytokines without considering whether or not they are single positive, double positive etc. So any cell producing IL-4 is included in the IL-4 analysis.
@@ -269,12 +347,8 @@ library(ggplot2)
 library(knitr)
 cyt<-select(Cytokine, Donor, TB, SM, Stim, IFNg, TNFa, IL4, IL13)
 
-melt<-melt(cyt,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
-melt$label = factor(melt$variable,levels=c("IFNg", "TNFa", "IL4", "IL13"))
-melt<-filter(melt, !is.na(label))
+melt<-melt(cyt,id.vars=c("TB","SM", "Stim"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
+melt$variable = factor(melt$variable,levels=c("IFNg", "TNFa", "IL4", "IL13"))
 
 #### PMA
 data<-filter(melt, Stim=="PMA")
@@ -295,10 +369,10 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(cyt, Stim=="PMA")
-kable(pvals(data, "IFNg"), caption = "Non Specific CD4 T cell Responses")
-kable(pvals(data, "TNFa"))
-kable(pvals(data, "IL4"))
-kable(pvals(data, "IL13"))
+kable(pvals_helminth(data, "IFNg"), caption = "Non Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "TNFa"))
+kable(pvals_helminth(data, "IL4"))
+kable(pvals_helminth(data, "IL13"))
 
 #### WCL
 data<-filter(melt, Stim=="WCL")
@@ -319,10 +393,10 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(cyt, Stim=="WCL")
-kable(pvals(data, "IFNg"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
-kable(pvals(data, "TNFa"))
-kable(pvals(data, "IL4"))
-kable(pvals(data, "IL13"))
+kable(pvals_helminth(data, "IFNg"), caption = "Mtb Whole Cell Lysate Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "TNFa"))
+kable(pvals_helminth(data, "IL4"))
+kable(pvals_helminth(data, "IL13"))
 
 
 #### Peptide
@@ -344,10 +418,10 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(cyt, Stim=="PEP")
-kable(pvals(data, "IFNg"), caption = "Mtb Peptide Specific CD4 T cell Responses")
-kable(pvals(data, "TNFa"))
-kable(pvals(data, "IL4"))
-kable(pvals(data, "IL13"))
+kable(pvals_helminth(data, "IFNg"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "TNFa"))
+kable(pvals_helminth(data, "IL4"))
+kable(pvals_helminth(data, "IL13"))
 
 ```
 
@@ -362,16 +436,11 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(knitr)
-SP_lin<-rename(Cytokine, G_single =  G_x_x_x, T_single = x_x_x_T, IL4_single = x_4_x_x, IL13_single = x_x_13_x, 
-               G_T = G_x_x_T, IL4_IL13 = x_4_13_x) %>%
+SP_lin<-rename(Cytokine, G_single =  G_x_x_x, T_single = x_x_x_T, IL4_single = x_4_x_x, IL13_single = x_x_13_x, G_T = G_x_x_T, IL4_IL13 = x_4_13_x) %>%
     select(Donor, TB, SM, Stim, G_single, T_single, IL4_single, IL13_single, G_T, IL4_IL13)
 
-melt<-melt(SP_lin,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
+melt<-melt(SP_lin,id.vars=c("TB","SM", "Stim"), measure.vars=c("G_single", "T_single", "G_T", "IL4_single", "IL13_single", "IL4_IL13"))
 melt$label = factor(melt$variable,levels=c("G_single", "T_single", "G_T", "IL4_single", "IL13_single", "IL4_IL13"))
-melt<-filter(melt, !is.na(label))
 
 #### PMA
 # Th1 plots
@@ -410,12 +479,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_lin, Stim=="PMA")
-kable(pvals(data, "G_single"), caption = "Non-Specific CD4+ T cell Responses")
-kable(pvals(data, "T_single")) 
-kable(pvals(data,"G_T"))
-kable(pvals(data, "IL4_single"))
-kable(pvals(data, "IL13_single")) 
-kable(pvals(data, "IL4_IL13"))
+kable(pvals_helminth(data, "G_single"), caption = "Non-Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "T_single")) 
+kable(pvals_helminth(data,"G_T"))
+kable(pvals_helminth(data, "IL4_single"))
+kable(pvals_helminth(data, "IL13_single")) 
+kable(pvals_helminth(data, "IL4_IL13"))
 
 
 #### WCL
@@ -455,12 +524,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_lin, Stim=="WCL")
-kable(pvals(data, "G_single"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
-kable(pvals(data, "T_single")) 
-kable(pvals(data,"G_T"))
-kable(pvals(data, "IL4_single"))
-kable(pvals(data, "IL13_single")) 
-kable(pvals(data, "IL4_IL13"))
+kable(pvals_helminth(data, "G_single"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "T_single")) 
+kable(pvals_helminth(data,"G_T"))
+kable(pvals_helminth(data, "IL4_single"))
+kable(pvals_helminth(data, "IL13_single")) 
+kable(pvals_helminth(data, "IL4_IL13"))
 
 
 #### PEP
@@ -500,12 +569,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_lin, Stim=="PEP")
-kable(pvals(data, "G_single"), caption = "Mtb Peptide Specific CD4 T cell Responses")
-kable(pvals(data, "T_single")) 
-kable(pvals(data,"G_T"))
-kable(pvals(data, "IL4_single"))
-kable(pvals(data, "IL13_single")) 
-kable(pvals(data, "IL4_IL13"))
+kable(pvals_helminth(data, "G_single"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals_helminth(data, "T_single")) 
+kable(pvals_helminth(data,"G_T"))
+kable(pvals_helminth(data, "IL4_single"))
+kable(pvals_helminth(data, "IL13_single")) 
+kable(pvals_helminth(data, "IL4_IL13"))
 
 ```
 
@@ -574,12 +643,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_Ag, Stim=="PMA")
-kable(pvals(data, "G_plus"), caption = "Non Specific CD4+ T cell Responses")
-kable(pvals(data, "T_plus"))
-kable(pvals(data, "G_T_plus"))
-kable(pvals(data, "IL4_plus"))
-kable(pvals(data, "IL13_plus"))
-kable(pvals(data, "IL4_IL13_plus"))
+kable(pvals_helminth(data, "G_plus"), caption = "Non Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "T_plus"))
+kable(pvals_helminth(data, "G_T_plus"))
+kable(pvals_helminth(data, "IL4_plus"))
+kable(pvals_helminth(data, "IL13_plus"))
+kable(pvals_helminth(data, "IL4_IL13_plus"))
 
 
 ### WCL
@@ -619,12 +688,12 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_Ag, Stim=="WCL")
-kable(pvals(data, "G_plus"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
-kable(pvals(data, "T_plus"))
-kable(pvals(data, "G_T_plus"))
-kable(pvals(data, "IL4_plus"))
-kable(pvals(data, "IL13_plus"))
-kable(pvals(data, "IL4_IL13_plus"))
+kable(pvals_helminth(data, "G_plus"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "T_plus"))
+kable(pvals_helminth(data, "G_T_plus"))
+kable(pvals_helminth(data, "IL4_plus"))
+kable(pvals_helminth(data, "IL13_plus"))
+kable(pvals_helminth(data, "IL4_IL13_plus"))
 
 
 
@@ -665,13 +734,16 @@ g + geom_boxplot(outlier.shape = NA, size=1) +
          y="Frequency of Cytokine+ CD4+ T cells (%)")
 
 data<-filter(SP_Ag, Stim=="PEP")
-kable(pvals(data, "G_plus"), caption = "Mtb Peptide Specific CD4+ T cell Responses")
-kable(pvals(data, "T_plus"))
-kable(pvals(data, "G_T_plus"))
-kable(pvals(data, "IL4_plus"))
-kable(pvals(data, "IL13_plus"))
-kable(pvals(data, "IL4_IL13_plus"))
+kable(pvals_helminth(data, "G_plus"), caption = "Mtb Peptide Specific CD4+ T cell Responses")
+kable(pvals_helminth(data, "T_plus"))
+kable(pvals_helminth(data, "G_T_plus"))
+kable(pvals_helminth(data, "IL4_plus"))
+kable(pvals_helminth(data, "IL13_plus"))
+kable(pvals_helminth(data, "IL4_IL13_plus"))
 ```
+
+
+
 
 
 
