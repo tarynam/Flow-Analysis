@@ -1,0 +1,296 @@
+---
+title: "ICS Phenotyping"
+author: "Taryn McLaughlin"
+date: "12/2/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+```
+
+#Total CD4
+```{r total CD4}
+library(dplyr)
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
+CD4<-read.csv("CD4_clean.csv")
+    #since we don't care about the yerkes donors in our analysis and they mess everything up
+    #we will filter them out
+    data<-filter(CD4, SM!="N")
+    #and then re-level both the SM and TB variable to not confuse our functions
+    data$SM<-factor(data$SM, levels=c("X","SM"))
+    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+CD4<-data
+
+#creates a list of character strings for each of the columns of interest
+colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
+for(col in colnames){#this will loop through each character string in the list
+    x<-subset(CD4, CD4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    y<-pvals_helminth(x, col)
+    print(y) #will return the output for each character string in the loop
+}
+```
+
+#Removing Non-Specific Responses
+```{r AG specific}
+#mimosa is the program used to determine whether a response is "real" or not
+#I have previously run this analysis, processed the data, and stored it locally
+mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_MIMOSA_Complete.csv")
+mimosa<-dplyr::rename(mimosa, id = Sample)
+#select the columns that will be our sample indicator "id", as well as our "key" columns
+#indicated by the "include" suffix. IF a sample has a 0 in the include column it's related data will be
+#removed from the analysis
+antigen.ref<-dplyr::select(mimosa, id, Cyt_include, TH1_include, TH2_include, TH1.2_include)
+
+#read in the data set containing the actual phenotype measurements
+phenotype<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_Positive_clean.csv")
+#we don't have unstimulated data in the mimosa analysis by default so we remove it
+phenotype<-dplyr::filter(phenotype, !(Stim=="UN"))
+#we need matching ids so we create a new column that pastes the donor and the stim together to match the
+#id variable in the antigen.ref data frame
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+#again to match the other dataframe's nomenclature
+names(phenotype)<-gsub("Cytokine", "Cyt", names(phenotype))
+
+library(dplyr)
+#arranging both data sets by the id variable that we will match on ensures that proper matching occurs
+mimosa<-arrange(mimosa, id)
+phenotype<-arrange(phenotype, id)
+DF<-phenotype #so we don't alter the original phenotype dataframe just in case
+keynames<-c("Cyt", "TH1", "TH1.2", "TH2") #list of character strings that contain our "key" values
+#in the antigen ref we have columns named "key"_include and in the phenotype data we have columns named
+#"key"_"parameter"
+
+for(key in keynames){#loops through all the "keys" in the list and does the following for each "key"
+    #creates a list of id names where the key_include column in antigen.ref is 0 -aka not a real response
+    remove<-subset(antigen.ref, antigen.ref[,paste(key,"include",sep="_")]==0)$id
+    print(key) #checks and balances so I can see it loop through the different keys
+    print(length(remove)) #see how many sample ids will be excluded
+    #this is a row column notation to index the DF data frame
+    #rows are first and this is indexed to include the rows where the id variable is in the remove list
+    #columns are second and this searches column names to include columns that include the "key" string
+    #for each row column combo that this is true the cell is set to NA
+    DF[(DF$id %in% remove), grep(paste(key,"_",sep=""), names(DF))]<-NA
+}
+
+#for me
+for(key in keynames){
+    print(key)
+    #will bind together into a new dataframe the columns that contain the key in the name from
+    #1. the original entries in the mimosa data frame, 2. the untouched phenotype data and 3. the new phenotype data with NA values
+    test<-data.frame(cbind(mimosa[grep(key, names(mimosa))], 
+                           phenotype[grep(paste(key,"_",sep=""), names(phenotype))],
+                           DF[grep(paste(key,"_",sep=""), names(DF))]))
+    #how many rows in the data have a 0 indicating they aren't a real response and have data in the corresponding columns of the phenotype data --> should be substantial
+    print(length(which(test[,8]==0 &! is.na(test[,9:24]))))
+        #how many rows in the data have a 0 indicating they aren't a real response and have data in the corresponding columns of the modified phenotype data --> should be 0
+    print(length(which(test[,8]==0 &! is.na(test[,25:40]))))
+}
+
+phenotype<-dplyr::select(DF, -id)
+write.csv(DF, "CD4_Phenotyping_clean.csv") #store for later
+```
+
+#P-values by disease status
+```{r}
+library(dplyr)
+library(knitr)
+#to see how many values are missing for each column
+kable(colSums(!is.na(phenotype)))
+data<-filter(phenotype, SM!="N")
+data$SM <-factor(data$SM, levels=c("X","SM"))
+data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+```
+
+For these, we have to subset the data by stim since the extent to which a column's data is missing depends on the stim. NA values will really mess up the p value functions. Basically the function won't work at all if one of the 6 disease groups doesn't have any observations. It just aborts. I could fix it but I haven't yet. I've only annotated the PMA chunk but the other stims are all the same mechanism.
+
+#PMA Phenotyping
+```{r PMA}
+library(dplyr)
+library(knitr)
+#since the extent of missingness varies by stim we have to do this each time
+DF<-subset(data, data$Stim=="PMA")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[5])
+e<-unlist(y[6])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 6 TB-SM groups
+colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-colnames[7:length(colnames)]
+for(col in colnames){
+    y<-pvals_helminth(DF, col)
+    print(y)
+}
+```
+#Peptide-Specific Phenotyping
+```{r PEP}
+library(dplyr)
+library(knitr)
+DF<-subset(data, data$Stim=="PEP")
+x<-split(DF, list(DF$TB, DF$SM))
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[5])
+e<-unlist(y[6])
+colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+colnames<-colnames[7:length(colnames)]
+for(col in colnames){
+    y<-pvals_helminth(DF, col)
+    print(y)
+}
+```
+#WCL-Specific Phenotyping
+```{r WCL}
+library(dplyr)
+library(knitr)
+DF<-subset(data, data$Stim=="WCL")
+x<-split(DF, list(DF$TB, DF$SM))
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[5])
+e<-unlist(y[6])
+colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+colnames<-colnames[7:length(colnames)]
+for(col in colnames){
+    y<-pvals_helminth(DF, col)
+    print(y)
+}
+```
+#SEA-Specific Phenotyping
+```{r SEA}
+library(dplyr)
+library(knitr)
+DF<-subset(data, data$Stim=="SEA")
+x<-split(DF, list(DF$TB, DF$SM))
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[5])
+e<-unlist(y[6])
+colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+colnames<-colnames[7:length(colnames)]
+for(col in colnames){
+    y<-pvals_helminth(DF, col)
+    print(y)
+}
+```
+#SWAP-Specific Phenotyping
+```{r SWAP}
+library(dplyr)
+library(knitr)
+DF<-subset(data, data$Stim=="SWAP")
+x<-split(DF, list(DF$TB, DF$SM))
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[5])
+e<-unlist(y[6])
+colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+colnames<-colnames[7:length(colnames)]
+for(col in colnames){
+    y<-pvals_helminth(DF, col)
+    print(y)
+}
+```
+
+#P-Values by Stim
+In this case, the function is written such that I have to subset to look within each of the TB-SM subsets one by one. I'm working on writing the function to be able to handle it all. I've also included one example graph to see what I'm comparing.
+
+```{r example ggplot}
+library(ggplot2)
+data<-filter(phenotype, SM!="N")
+    data$SM<-factor(data$SM, levels=c("X","SM"))
+    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+ggplot(data, aes(y=TH1_GATA3, x=Stim, col=TB))+
+    geom_point(size=3, alpha=0.5)+geom_line(aes(group=Donor))+
+    scale_color_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    facet_grid(SM~TB)+coord_cartesian(ylim = c(0,20))+
+    labs(y= "Frequency of GATA3+ Mtb-Specific TH1 Cells")
+```
+
+
+#Healthy Controls SM-
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="HC" & SM=="X")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#Healthy Controls SM+
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="HC" & SM=="SM")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#LTBI SM-
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="LTBI" & SM=="X")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#LTBI SM+
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="LTBI" & SM=="SM")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#TB SM-
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="TB" & SM=="X")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#TB SM+
+```{r}
+library(dplyr)
+colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenotype, TB=="TB" & SM=="SM")
+for(col in colnames){
+    y<-pvals_stim(df, col)
+    print(y)
+}
+```
+
+#P values by Stim and Helminth
+I haven't written this up nicely yet but none of it is significant
+

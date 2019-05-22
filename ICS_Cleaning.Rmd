@@ -33,23 +33,30 @@ PBMC<- dplyr::filter(PBMC, !(Excluded=="EX"))%>%
     dplyr::select(StudyID, TB, SM, Viability, Cells.Vial, Excluded) #take only the columns you need
 
 #Import the clinical enrollment data from the cleaned merged epi file
-    QFT<- read.csv("/Applications/Old Computer/Epi Project/Data_clean/complete-kenya.csv")
+    QFT<- read.csv("/Applications/Old Computer/Epi Project/Data_clean/complete-kenya-filledin.csv")
 #The studyIDs of coenrolled people are NK#_TRU# and we want just the NK# to match the lab notes
     QFT$StudyID<-tstrsplit(QFT$StudyID, "_")[[1]]
 #trim the data set to only those study IDs in the lab notes and select the columns you want
-    QFT<- dplyr::filter(QFT, StudyID %in% PBMC$StudyID)%>%
-        dplyr::select(StudyID, age, sex, QFT, SchistosomaIntensity)
+    QFT2<-dplyr::select(QFT, StudyID, age, sex, QFT, SchistosomaIntensity)%>%
+        dplyr::filter(StudyID %in% PBMC$StudyID)
+        
 
 #Merge the two tables together and keep all observations since the yerkes donors won't be in the epi data
-    DonorInfo<-merge(PBMC, QFT, by="StudyID", all = TRUE)
+    DonorInfo<-merge(PBMC, QFT2, by="StudyID", all = TRUE)
 #The class of variables gets messed up in the merge so re-class them
     DonorInfo$Cells.Vial<-as.numeric(as.character(DonorInfo$Cells.Vial))
     DonorInfo$QFT<-as.numeric(as.character(DonorInfo$QFT))
 #Match the variable names of the ICS data
     DonorInfo<-dplyr::rename(DonorInfo, Donor = StudyID)
+    DonorInfo$TB<-gsub("Active TB", "TB", DonorInfo$TB)
+    DonorInfo$TB<-gsub("Healthy Control", "HC", DonorInfo$TB)
+    DonorInfo$SM<-gsub("Negative", "X", DonorInfo$SM)
+    DonorInfo$SM<-gsub("Schisto+", "SM", DonorInfo$SM)
+    DonorInfo$SM<-gsub("\\+", "", DonorInfo$SM)
+
     
 #Manual Edits that may get deleted after Kenya script is finalized
-    DonorInfo$TB[DonorInfo$Donor=="NK2183"]<-as.character("Healthy Control")
+    DonorInfo$TB[DonorInfo$Donor=="NK2183"]<-as.character("HC")
     DonorInfo$QFT[DonorInfo$Donor=="NK2323"]<-0.04
     DonorInfo$SM[DonorInfo$Donor=="NK2325"]<-as.character("Unknown")
 ```
@@ -64,6 +71,7 @@ filenames =list.files(pattern="*.csv")
 for (i in 1:length(filenames)) 
     assign(filenames[i], read.csv(filenames[i]))
 ```
+
 ```{r source functions used in this script}
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/ICS-cleaning-functions.R")
@@ -82,6 +90,7 @@ l<-lapply(l, function(x) splitter(x, "Sample", "_", one="Donor", two="TB", three
 l<-lapply(l, function(x) remove_samples(x))
 l<-lapply(l, function(x) fix.names(x))
 l<-lapply(l, function(x) class_change(x))
+l<-lapply(l, function(x) changeTB(x))
 
 #then we use the assign function to extract each data frame from the list and assign it to the filename
 #associated with it from the beginning
