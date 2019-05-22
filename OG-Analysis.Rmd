@@ -1,0 +1,207 @@
+---
+title: "OG-Analysis"
+author: "Taryn McLaughlin"
+date: "5/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r read in data files}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+CD4_summary<-read.csv("OG_CD4-bulk_summary.csv")
+CD4_summary$SM<-factor(CD4_summary$SM, levels=c("X", "SM"))
+CD4_OG_summary<-read.csv("OG_CD4-OG_summary.csv")
+CD4_OG_summary$SM<-factor(CD4_OG_summary$SM, levels=c("X", "SM"))
+PBMC<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/exported/OG_PBMC.csv")
+```
+
+```{r functions and stuff}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/Plotting_1902.R")
+```
+
+```{r PBMC}
+PBMC<-filter(PBMC, !is.na(Study.ID))
+PBMC<-filter(PBMC, Helminth.Status %in% c("Negative", "Schisto+"))
+PBMC$Helminth.Status<-factor(PBMC$Helminth.Status, levels=c("Negative", "Schisto+"))
+PBMC$TB.Status<-factor(PBMC$TB.Status, levels=c("Healthy Control", "LTBI", "Active TB"))
+PBMC<-filter(PBMC, !(Study.ID=="NK2208" & Exp.Name=="TM181216"))
+PBMC<-filter(PBMC, !(Study.ID=="NK2306" & Exp.Name=="TM181206"))
+PBMC<-filter(PBMC, !(Study.ID=="NK2353" & Exp.Name=="TM190411"))
+PBMC<-filter(PBMC, !(Study.ID=="NK2384" & Exp.Name=="TM190411"))
+PBMC$TB<-PBMC$TB.Status
+PBMC$SM<-PBMC$Helminth.Status
+
+grid.arrange(plot_6(PBMC, "SM", "Viability")+labs(y="Viability"),
+    plot_6(PBMC, "SM", "Cells.Vial")+labs(y="Cell Count"),
+    ncol=2
+)
+
+plot_pairs<-function(data, xval, yval){
+    ggplot(data, aes(x=data[,xval], y=data[,yval]))+
+        geom_point(size=3, aes(color=TB, alpha=SM)) +
+        geom_line(aes(group=Study.ID))+
+        scale_color_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+        scale_alpha_manual(values=c(0.5,1))+
+        facet_grid(~SM)+
+        theme_bw()+ theme(legend.position="bottom")+
+        theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+        theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+        facet_grid(SM~TB, scale="free")+
+        stat_compare_means(label = "p.format", p.adjust.method = "fdr", hide.ns = TRUE, size = 4, 
+                           method="wilcox.test", paired = TRUE, label.y= (max(data[,yval])*1.1))
+}
+
+melt<-melt(PBMC, id.vars=c("Study.ID", "TB", "SM"), measure.vars = c("Viability", "OG.Viability"))
+plot_pairs(melt, "variable", "value")+labs(y="Viability", x="Time")
+
+melt<-melt(PBMC, id.vars=c("Study.ID", "TB", "SM"), measure.vars = c("Cells.Vial", "OG.Cell.."))
+plot_pairs(melt, "variable", "value")+labs(y="Count", x="Time")
+```
+
+
+```{r}
+library(dplyr)
+antigen.ref<-MIMOSA.Results
+antigen.ref$id<-rownames(antigen.ref)
+antigen.ref$id<-gsub("_Treatment", "", antigen.ref$id)
+antigen.ref<-arrange(antigen.ref, id)
+
+phenotype<-CD4_OG_summary
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+```
+
+#Pep
+```{r}
+df<-filter(CD4_summary, Stim=="PEP")
+top<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    facet_grid(~TB)+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(axis.title.x=element_blank(),axis.text.x=element_blank(), axis.ticks.x=element_blank())+
+    theme(text = element_text(size=20)) +   
+    facet_grid(~TB)+
+    labs(y="", x="")+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    stat_compare_means(label = "p.format")+
+    coord_cartesian(ylim=c(2,30))
+
+bottom<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB)) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    theme(strip.background = element_blank(),strip.text.x = element_blank())+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB)+
+    labs(y="", x="")+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    coord_cartesian(ylim=c(0,2))
+
+grid.arrange(top, bottom, ncol=1, heights=c(4,8))
+
+
+
+
+
+df<-filter(phenotype, Stim=="PEP", TB!="HC")
+test<-filter(phenotype, Stim=="PEP", TB!="HC", !is.na(IFNg_freq))
+kable(xtabs(~TB+SM, test))
+df$SM<-factor(df$SM, levels=c("X", "SM"))
+grid.arrange(plot_2(df, "SM", "IFNg_freq")+labs(y="IFNg+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "TNFa_freq")+labs(y="TNFa+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "IL4_freq")+labs(y="IL-4+ Proliferating CD4+ T cells (%)", x=""),
+             ncol=3
+             
+)
+
+grid.arrange(plot_2(df, "SM", "CXCR3_freq")+labs(y="CXCR3+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "CCR4_freq")+labs(y="CCR4+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "Tbet_freq")+labs(y="Tbet+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "GATA3_freq")+labs(y="GATA3+ Proliferating CD4+ T cells (%)", x=""),
+             ncol=4
+             
+)
+```
+
+#WCL
+```{r}
+df<-filter(CD4_summary, Stim=="WCL")
+top<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), 
+        outlier.shape = NA, aes(fill=TB)) +geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    facet_grid(~TB)+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(axis.title.x=element_blank(),axis.text.x=element_blank(), axis.ticks.x=element_blank())+
+    theme(text = element_text(size=20)) +   
+    facet_grid(~TB)+
+    labs(y="", x="")+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    stat_compare_means(label = "p.format")+
+    coord_cartesian(ylim=c(5,50))
+
+bottom<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), 
+                 outlier.shape = NA, aes(fill=TB)) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
+    theme(strip.background = element_blank(),strip.text.x = element_blank())+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB)+
+    labs(y="", x="")+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    coord_cartesian(ylim=c(0,5))
+
+grid.arrange(top, bottom, ncol=1, heights=c(4,6))
+
+
+
+df<-filter(phenotype, Stim=="WCL", TB!="HC")
+test<-filter(phenotype, Stim=="WCL", TB!="HC", !is.na(IFNg_freq))
+kable(xtabs(~TB+SM, test))
+
+grid.arrange(plot_2(df, "SM", "IFNg_freq")+labs(y="IFNg+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "TNFa_freq")+labs(y="TNFa+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "IL4_freq")+labs(y="IL-4+ Proliferating CD4+ T cells (%)", x=""),
+             ncol=3
+             
+)
+
+grid.arrange(plot_2(df, "SM", "CXCR3_freq")+labs(y="CXCR3+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "CCR4_freq")+labs(y="CCR4+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "Tbet_freq")+labs(y="Tbet+ Proliferating CD4+ T cells (%)", x=""),
+             plot_2(df, "SM", "GATA3_freq")+labs(y="GATA3+ Proliferating CD4+ T cells (%)", x=""),
+             ncol=4
+             
+)
+```
+
+
+
