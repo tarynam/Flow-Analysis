@@ -1,257 +1,144 @@
 ---
-title: "R Notebook"
+title: "Total CD4 Data"
 output:
   html_document: default
   html_notebook: default
 ---
+This will be the markdown file looking at total CD4 phenotypes from the unstimulated condition
 
-
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE, comment=NA)
 library(dplyr)
-library(reshape2)
-Boolean<-select(Cytokine, Donor, TB, SM, Stim, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T, G_4_x_x, G_x_13_x,
-                x_4_x_T, x_x_13_T, G_x_x_T , G_x_x_x, x_x_x_T,  x_4_13_x, x_4_x_x, x_x_13_x)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(ggpubr)
+library(cowplot)
+```
 
-melt<-melt(Boolean,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
-melt$label = factor(melt$variable,levels=c("G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", "G_x_13_x","x_4_x_T","x_x_13_T", "G_x_x_T" , "G_x_x_x","x_x_x_T",  "x_4_13_x","x_4_x_x", "x_x_13_x"))
-melt$TB<-factor(melt$TB, levels=c("N","HC","LTBI","TB"))
-melt$SM<-factor(melt$SM, levels=c("N","X","SM"))
-melt<-filter(melt, !is.na(label))
+```{r}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+```
 
-data<-filter(melt, TB %in% c("HC", "N") & Stim=="PMA")
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
+cd4<-read.csv("ICS_CD4_clean.csv")
+    #since we don't care about the yerkes donors in our analysis and they mess everything up
+    #we will filter them out
+    data<-filter(cd4, SM!="N")
+    #and then re-level both the SM and TB variable to not confuse our functions
+    data$SM<-factor(data$SM, levels=c("X","SM"))
+    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+cd4<-data
+```
 
-g<-ggplot(melt, aes(x=label, y=value, fill=TB, alpha=SM))
-g + geom_boxplot(outlier.shape = NA, size=1) + 
-    geom_jitter(width=.1,height=0, shape=1,size=2) +
-    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#67001f"))+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
-    facet_grid(Stim~TB, scale="free")
-    
-    
-    
-    scale_color_manual(labels = c("SM(-)", "SM(+)"), values = Palette) +
-    scale_x_discrete(breaks=c("X","SM"),
-                     labels=c("SM(-)", "SM(+)"))+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
-    facet_wrap(~TB,nrow = 1, scale="free_x")+
-    labs(title="Cytokine Frequencies", 
-         subtitle="",
-         caption="",
-         x="TB and Helminth Status",
-         y="Frequency of Cytokine+ CD4+ T cells")
+##Test and Return Significant Differences
+This will run through each column, and test the relevant comparisons for statistical significance. It also corrects when multiple comparisons are made. Since Healthy Controls are only compared internally, they do not get included in the multiple testing comparison. The function only returns the comparisons that have an initial p-value less than 0.05, which reduces clutter. Everything else is insignificant.
+```{r}
+library(knitr)
+#creates a list of character strings for each of the columns of interest
+colnames<-names(dplyr::select(cd4, -X, -Sample, -Donor, -Stim, -TB, -SM))
+for(col in colnames){#this will loop through each character string in the list
+    a<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    b<-pvals_6(a, col)
+    if(dim(b)[1]!=0)
+    print(kable(b, caption=col)) #will return the output for each character string in the loop
+}
+```
+
+##Graph things that are significant
+Since SM- and SM+ are literally only different (p<0.05 after corrections) in Healthy Controls, I've graphed only those. It makes sense to me to graph it this way but am open to suggestions. We can start with a claim like "S mansoni on it's own has an influence on ____."  
+
+####Option 1
+```{r, fig.width=8, fig.height=8}
+data<-filter(cd4, cd4$Stim=="UN", cd4$TB=="HC")
+a<-plot_hc(data, "SM", "CXCR3")+labs(title="Surface Marker Expression", subtitle="TH1")
+b<-plot_hc(data, "SM", "CCR4")+labs(title=" ", subtitle="TH2")
+c<-plot_hc(data, "SM", "Tbet")+labs(title="Transcription Factor Expression", subtitle="TH1")
+d<-plot_hc(data, "SM", "GATA3")+labs(title=" ",subtitle="TH2")
+plot_grid(a,b,c,d, ncol=2)
+```
+
+####Option 2
+```{r, fig.width=8, fig.height=8}
+a<-plot_hc(data, "SM", "CXCR3")+labs(title="TH1", subtitle="Surface Marker")
+b<-plot_hc(data, "SM", "Tbet")+labs(title=" ", subtitle="Transcription Factor")
+c<-plot_hc(data, "SM", "CCR4")+labs(title="TH2", subtitle="Surface Marker")
+d<-plot_hc(data, "SM", "GATA3")+labs(title=" ", subtitle="Transcription Factor")
+plot_grid(a,b,c,d, ncol=2 )
+```
+
+##All Possible Graphs
+For posterity... But I doubt we will include any of these
+
+###MFI
+```{r}
+for(col in colnames[1:4]){#this will loop through each character string in the list
+    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    y<-plot_6(x, "SM", col)+
+        labs(subtitle=paste(gsub("_", " ", col), "on CD4+ T cells"), 
+             caption="",
+             x="",
+             y=gsub("_", " ", col))
+    print(y) #will return the output for each character string in the loop
+}
 ```
 
 
+###Surface Markers
 ```{r}
-#Antigen specific responses using total cytokine
-Cyt<-read.csv("Cyt.csv")
-TH1<-read.csv("TH1.csv")
-TH2<-read.csv("TH2.csv")
-TH1.2<-read.csv("TH1-2.csv")
-
-Split<- strsplit(as.character(Cyt$Sample)," ")
-Cyt$Sample = as.factor(sapply(Split,"[",2))
-TH1$Sample = as.factor(sapply(Split,"[",2))
-TH2$Sample = as.factor(sapply(Split,"[",2))
-TH1.2$Sample = as.factor(sapply(Split,"[",2))
-
-AG<-AG[!(AG$Sample=="NK2037_TB_HEL_T_PMA_020.fcs")]
-AG<-AG[!(AG$Sample=="NK2126_HC_X_SEA_005.fcs")]
-AG<-AG[!(AG$Sample=="NK2450_HC_SM_SEA_047.fcs")]
-AG<-AG[!(AG$Sample=="NK2402_LTBI_SM_SWAP_024.fcs")]
-AG<-AG[!(AG$Sample=="NK2342_TB_X_SWAP_006.fcs")]
-AG<-AG[!(AG$Sample=="NK2136_TB_X_WCL_003.fcs")]
-AG<-AG[!(AG$Sample=="NK2168_HC_SM_WCL_040.fcs")]
-AG<-AG[!(AG$Sample=="NK2088_LTBI_HEL_H_PEP_010.fcs")]
-
-AG<-as.data.table(AG)
-
-TH1<-merge(AG,TH1,by="Sample")
-TH2<-merge(AG,TH2,by="Sample")
-TH1.2<-merge(AG,TH1.2,by="Sample")
-Cyt<-merge(AG,Cyt,by="Sample")
-
-Cyt<-Cyt[,c(1:5,21:25,29,30,35:51)]
-TH1<-TH1[,c(1:5,21,24,26,31,35:51)]
-TH2<-TH2[,c(1:5,22:23,28,32,35:51)]
-TH1.2<-TH1.2[,c(1:5,21:24,27,33,35:51)]
-
+for(col in colnames[5:10]){#this will loop through each character string in the list
+    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    name<-gsub(".P", "+", col)
+    name<-gsub("_","", name)
+    name<-gsub(".N", "-", name)
+    y<-plot_6(x, "SM", col)+
+        labs(subtitle=paste(name, "(% CD4+ T cells)"), 
+             caption="",
+             x="",
+             y=paste(name, "(% CD4+ T cells)"))
+    print(y) #will return the output for each character string in the loop
+}
 ```
 
 
-```{r}
+###Transcription Factors
 
+As you can see there is one crazy looking "outlier" in GATA3 from NK2586. 
+```{r}
+for(col in colnames[11:16]){#this will loop through each character string in the list
+    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    name<-gsub(".P", "+", col)
+    name<-gsub("_","", name)
+    name<-gsub(".N", "-", name)
+    y<-plot_6(x, "SM", col)+
+        labs(subtitle=paste(name, "(% CD4+ T cells)"), 
+             caption="",
+             x="",
+             y=paste(name, "(% CD4+ T cells)"))
+    print(y) #will return the output for each character string in the loop
+}
+```
+
+#Side Note
+This is the statistical evaluation of the data set without NK2586 the outlier GATA3 donor to see if it makes a difference.
+```{r}
+colnames2<-colnames[grep("GATA", colnames)]
+for(col in colnames2){#this will loop through each character string in the list
+    a<-filter(cd4, Stim=="UN", Donor!="NK2586") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    b<-pvals_6(a, col)
+    if(dim(b)[1]!=0)
+    print(kable(b, caption=col)) #will return the output for each character string in the loop
+}
 ```
 
 
-Prep for Stacked Bars PMA as example
-```{r}
-df<-WCL[,c(4,5,27:34)]
-df$TH1.Portion<-(df$TH1.Count/df$Cyt.Count)
-df$TH2.Portion<-(df$TH2.Count/df$Cyt.Count)
-df$TH1.2.Portion<-(df$TH1.2.Count/df$Cyt.Count)
-df$TH1.Port<-(df$TH1.Freq/df$Cyt.Freq)
-df$TH2.Port<-(df$TH2.Freq/df$Cyt.Freq)
-df$TH1.2.Port<-(df$TH1.2.Freq/df$Cyt.Freq)
 
-#unscaled frequencies
-df1<-df[,c(1,2,6,8,10)]
-df2<-melt(df1,id.vars=c("TB","SM"))
-df3<-as.data.frame(
-  ddply(df2, c("TB", "SM", "variable"), summarise,
-        median = median(value), sd = sd(value),
-        error = qnorm(0.975)*sd(value)/sqrt(length(value))))
-df3$upper<-(df3$median+df3$error)
-df3$lower<-(df3$median-df3$error)
-
-#you have to do these to get the bars to be right
-df3$variable<-factor(df3$variable, levels=c('TH2.Freq','TH1.2.Freq','TH1.Freq',ordered=TRUE))
-df3$Label <- paste(df3$TB, df3$SM, sep='_')
-
-#adjusting error HC_X
-df3$upper[df3$variable=="TH1.2.Freq" & df3$Label=="HC_X"]<-
-  df3$median[df3$variable=="TH1.2.Freq" & df3$Label=="HC_X"]+
-  df3$median[df3$variable=="TH1.Freq" & df3$Label=="HC_X"]+
-  df3$error[df3$variable=="TH1.2.Freq" & df3$Label=="HC_X"]
-
-```
-
-Boolean Cytokines with PMA as an example
-```{r}
-# to make the cytokine frequency graphs example with PMA
-library(dplyr)
-library(reshape2)
-Boolean<-select(data, Donor, TB, SM, G_4_13_T, G_4_x_T, G_x_13_T, G_4_13_x, x_4_13_T,G_4_x_x, G_x_13_x,x_4_x_T,x_x_13_T, G_x_x_T , G_x_x_x,x_x_x_T,  x_4_13_x,x_4_x_x, x_x_13_x)
-
-melt<-melt(Boolean,id.vars=c("TB","SM", "Stim"))
-melt$value<-as.numeric(melt$value)
-melt<-filter(melt, !(is.na(value)))
-melt<-filter(melt, !(value<0))
-melt$label = factor(melt$variable,levels=c("G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", "G_x_13_x","x_4_x_T","x_x_13_T", "G_x_x_T" , "G_x_x_x","x_x_x_T",  "x_4_13_x","x_4_x_x", "x_x_13_x"))
-
-HC<-subset(melt, TB %in% "HC")
-LTBI<-subset(melt, TB %in% "LTBI")
-ATB<-subset(melt, TB %in% "TB")
-
-```
-
-Surface Markers on CD4
-```{r}
-df1<-CD4[,c(7:9,19,20)]
-df2<-melt(df1,id.vars=c("TB","SM"))
-df3<-as.data.frame(
-  ddply(df2, c("TB", "SM", "variable"), summarise,
-        median = median(value), sd = sd(value),
-        error = qnorm(0.975)*sd(value)/sqrt(length(value))))
-df3$upper<-(df3$median+df3$error)
-df3$lower<-(df3$median-df3$error)
-
-#you have to do these to get the bars to be right
-df3$Label <- paste(df3$TB, df3$SM, sep='_')
-
-df3$variable<-factor(df3$variable, levels=c('CCR4.P_CXCR3.P','CCR4.N_CXCR3.P','CCR4.P_CXCR3.N', ordered=TRUE))
-```
-
-Transcription Factors on CD4
-```{r}
-df1<-data[,c(22:24,4,5)]
-df2<-melt(df1,id.vars=c("TB","SM"))
-df3<-as.data.frame(
-  ddply(df2, c("TB", "SM", "variable"), summarise,
-        median = median(value), sd = sd(value),
-        error = qnorm(0.975)*sd(value)/sqrt(length(value))))
-df3$upper<-(df3$median+df3$error)
-df3$lower<-(df3$median-df3$error)
-
-#you have to do these to get the bars to be right
-# (grey, neither, top), (cornflower, mix), (orchid, type 2), (navy, type 1, bottom)
-df3$Label <- paste(df3$TB, df3$SM, sep='_')
-df3$variable<-factor(df3$variable, levels=c("TH1_GATA3.P_Tbet.P",'TH1_GATA3.P_Tbet.N','TH1_GATA3.N_Tbet.P', ordered=TRUE))
-``` 
-Surface Markers on AG specific
-```{r}
-df<-TH1[TH1$Stim=="WCL"]
-df1<-df[,c(9:11,20,21)]
-df2<-melt(df1,id.vars=c("TB","SM"))
-df3<-as.data.frame(
-  ddply(df2, c("TB", "SM", "variable"), summarise,
-        median = median(value), sd = sd(value),
-        error = qnorm(0.975)*sd(value)/sqrt(length(value))))
-df3$upper<-(df3$median+df3$error)
-df3$lower<-(df3$median-df3$error)
-
-#you have to do these to get the bars to be right
-# (grey, neither, top), (cornflower, mix), (orchid, type 2), (navy, type 1, bottom)
-df3$Label <- paste(df3$TB, df3$SM, sep='_')
-df3$variable<-factor(df3$variable, levels=c('CCR4.P_CXCR3.P','CCR4.N_CXCR3.P','CCR4.P_CXCR3.N', ordered=TRUE))
-```
-
-Transcription Factors on AG specific
-```{r}
-df<-TH1[TH1$Stim=="WCL"]
-df1<-df[,c(15:17,20,21)]
-df2<-melt(df1,id.vars=c("TB","SM"))
-df3<-as.data.frame(
-  ddply(df2, c("TB", "SM", "variable"), summarise,
-        median = median(value), sd = sd(value),
-        error = qnorm(0.975)*sd(value)/sqrt(length(value))))
-df3$upper<-(df3$median+df3$error)
-df3$lower<-(df3$median-df3$error)
-
-#you have to do these to get the bars to be right
-# (grey, neither, top), (cornflower, mix), (orchid, type 2), (navy, type 1, bottom)
-df3$Label <- paste(df3$TB, df3$SM, sep='_')
-df3$variable<-factor(df3$variable, levels=c("GATA3.P_Tbet.P",'GATA3.P_Tbet.N','GATA3.N_Tbet.P', ordered=TRUE))
-```
-
-
-Marker Co-expression
-```{r}
-CD4_melt<-melt(data,id.vars=c("TB","SM"))
-CD4_melt$value<-as.numeric(CD4_melt$value)
-CD4_melt<-CD4_melt[!(is.na(CD4_melt$value))]
-CD4_stats<-as.data.frame(
-  ddply(CD4_melt, c("TB", "SM", "variable"), summarise,
-        mean = mean(value), sd = sd(value),
-        sem = sd(value)/sqrt(length(value))))
-
-TF<-subset(CD4_melt, variable %in% c("GATA3.N_Tbet.P", "GATA3.P_Tbet.N", "GATA3.P_Tbet.P"))
-tf<-subset(CD4_stats, variable %in% c("GATA3.N_Tbet.P", "GATA3.P_Tbet.N", "GATA3.P_Tbet.P"))
-CC<-subset(CD4_melt, variable %in% c("CCR4.N_CXCR3.P", "CCR4.P_CXCR3.N", "CCR4.P_CXCR3.P"))
-cc<-subset(CD4_stats, variable %in% c("CCR4.N_CXCR3.P", "CCR4.P_CXCR3.N", "CCR4.P_CXCR3.P","CCR4.N_CXCR3.N"))
-```
-
-stats? sort of read this http://rcompanion.org/rcompanion/d_08.html
-```{r}
-data<-subset(CYT,CYT$Stim=="WCL")
-data<-filter(TH1,(Stim=="WCL" & TH1.Sum>0))
-
-x <- split(data, data$TB)
-lapply(x, function(g) wilcox.test(g$Cyt.Freq~g$SM))
-lapply(x, function(g) wilcox.test(g$TH1.Freq~g$SM))
-lapply(x, function(g) wilcox.test(g$TH1.2.Freq~g$SM))
-lapply(x, function(g) wilcox.test(g$TH2.Freq~g$SM))
-
-y <- split(data, data$SM)
-lapply(y, function(g) kruskal.test(g$Cyt.Freq~g$TB))
-lapply(y, function(g) kruskal.test(g$TH1.Freq~g$TB))
-lapply(y, function(g) kruskal.test(g$TH1.2.Freq~g$TB))
-lapply(y, function(g) kruskal.test(g$TH2.Freq~g$TB))
-
-
-data<-filter(TH1,(Stim=="WCL" & TH1.Sum>0))
-x <- split(data, data$TB)
-lapply(x, function(g) wilcox.test(g$TH1_Tbet~g$SM))
-lapply(x, function(g) wilcox.test(g$TH1_GATA3~g$SM))
-
-
-y <- split(data, data$SM)
-lapply(y, function(g) kruskal.test(g$TH1_Tbet~g$TB))
-lapply(y, function(g) kruskal.test(g$TH1_GATA3~g$TB))
-```
