@@ -1,0 +1,77 @@
+---
+title: "PBMC_Donor"
+author: "Taryn McLaughlin"
+date: "5/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE, comment=NA)
+knitr::opts_chunk$set(fig.height = 10.5, fig.width = 7.5)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(ggpubr)
+library(cowplot)
+```
+
+```{r}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+```
+
+
+```{r viability and cell counts}
+library(ggplot2)
+Donor$TB[grepl("HD", Donor$StudyID)==TRUE]<-"Yerkes"
+palette.four<-c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b")
+grid.arrange(ggplot(Donor, aes(x=SM, y=Viability, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB, scales="free")+
+    labs(title="Viability", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Live Cells (%)"),
+
+ggplot(Donor, aes(x=SM, y=Cells.Vial, fill=TB, alpha=SM)) +
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
+    geom_jitter(width=.1,height=0, shape=16,size=3)+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
+    facet_grid(~TB, scales="free")+
+    labs(title="Cell Counts", 
+         subtitle="",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Cells/mL)")
+)
+```
+
+
+```{r}
+#This was to pick the most robust responders for something else so Idk
+library(dplyr)
+mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_MIMOSA_Complete.csv")
+HD<-filter(mimosa, grepl("HD", mimosa$Sample))%>%
+    filter(Stim!="PMA")
+HDscores<-aggregate(score~Donor, HD, FUN=sum)
+HDkeep<-head(arrange(HDscores, score), 10)
+#382 479 487 are BCG
+HDremove<-HD$Donor[!(HD$Donor %in% HDkeep$Donor)]
+CD4<-dplyr::filter(CD4, !(Donor %in% HDremove))
+MFI<-dplyr::filter(MFI, !(Donor %in% HDremove))
+Compass<-dplyr::filter(Compass, !(Donor %in% HDremove))
+Donor<-dplyr::filter(Donor, !(Donor %in% HDremove))
+```
+
