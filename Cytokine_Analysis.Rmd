@@ -44,7 +44,28 @@ data$SM<-gsub("US|Not US|Unknown", "Naïve", data$SM)
 data$SM<-factor(data$SM, levels=c("Naïve","Negative","Schisto+"))
 Donor<-data
 ```
-#P-values for Cytokine Comparisons
+
+#Can we use HC and LTBI together
+```{r}
+library(knitr)
+#creates a list of character strings for each of the columns of interest
+colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
+for(col in colnames){#this will loop through each character string in the list
+    a<-subset(CD4, CD4$Stim=="PMA") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    b<-pvals_hc(a, col)
+    print(kable(b, caption=col))
+    
+    c<-filter(a, TB=="HC")
+    #will return the output for each character string in the loop
+    y<-plot_hc(c, "SM", col)
+    d<-filter(a, TB %in% c("HC", "LTBI"))
+    d$TB<-as.factor("combined")
+    x<-plot_hc(d, "SM", col)
+    grid.arrange(y,x, ncol=2)
+    }
+```
+
 
 ##PMA & Ionomycin
 ```{r}
