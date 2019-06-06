@@ -1,0 +1,165 @@
+---
+title: "ICS_HC"
+author: "Taryn McLaughlin"
+date: "6/2/2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE, comment=NA)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(ggpubr)
+library(cowplot)
+```
+
+```{r source}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
+```
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
+cd4a<-read.csv("ICS_CD4_clean.csv")
+cd4b<-read.csv("ICS_CD4_new.csv")
+
+CD4<-plot_filter(read.csv("ICS_CD4_Cytokine_clean.csv"))
+CD4b<-plot_filter(read.csv("ICS_CD4_Cytokine_new.csv"))
+
+phen<-read.csv("ICS_CD4_Phenotyping_clean.csv")
+phenb<-read.csv("ICS_CD4_phenotype_new_clean.csv")
+```
+
+#Are HC and LTBI different or can we combine?
+
+##Lineage Markers on UN
+
+```{r, fig.height=3, fig.width=6}
+library(knitr)
+colnames<-names(dplyr::select(cd4a, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(cd4a, Stim=="UN")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+```{r, fig.height=3, fig.width=6}
+colnames<-names(dplyr::select(cd4b, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(cd4b, Stim=="UN")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+##Cytokine Analysis from PMA
+
+```{r, fig.height=3, fig.width=6}
+library(knitr)
+colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(CD4, Stim=="PMA")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+```{r, fig.height=3, fig.width=6}
+library(knitr)
+colnames<-names(dplyr::select(CD4b, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(CD4b, Stim=="PMA")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+#Phenotype from PMA
+```{r, fig.height=3, fig.width=6}
+library(knitr)
+colnames<-names(dplyr::select(phen, -X.1, -X, -id, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phen, Stim=="PMA")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+#Phenotype from PMA
+```{r, fig.height=3, fig.width=6}
+library(knitr)
+colnames<-names(dplyr::select(phenb, -X.1, -X, -id, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(phenb, Stim=="PMA")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
+
+
+```{r}
+colnames<-names(dplyr::select(phen, -X, -X.1, -id, -Sample, -Donor, -Stim, -TB, -SM))
+for(col in colnames){#this will loop through each character string in the list
+    a<-subset(phen, phen$Stim=="PEP") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    b<-pvals_6(a, col) 
+    print(b)
+    c<-plot_with_all_stats(a, "PEP", col)+labs(y=col)
+    print(c)
+     #will return the output for each character string in the loop
+}
+
+colnames<-names(dplyr::select(phenb, -X, -X.1, -id, -Sample, -Donor, -Stim, -TB, -SM))
+for(col in colnames){#this will loop through each character string in the list
+    a<-subset(phenb, phenb$Stim=="PEP") #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    b<-pvals_6(a, col) 
+    print(b)
+    c<-plot_with_all_stats(a, "PEP", col)+labs(y=col)
+    print(c)
+    #will return the output for each character string in the loop
+}
+```
+
+
