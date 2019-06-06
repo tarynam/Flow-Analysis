@@ -96,6 +96,197 @@ CXCR3_freq<-sapply(samples, function(g) proc.freq(g, "CXCR3_gate"))
 CD4.OG_summary<-cbind(IFNg_freq, TNFa_freq, IL4_freq, OG_freq, GATA3_freq, Tbet_freq, CCR4_freq, CXCR3_freq)
 ```
 
+```{r Building Boolean for Lineage Markers}
+df<-CD4_OG
+samples<-split(df, list(df$donor, df$Stim))
+
+t_g_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+l.col<-lapply(ls(pattern="._._._."), function(x) get(x))
+boolean<-data.frame(bind_cols(l.col))
+names(boolean)<-c("t_g_3_4", "t_g_3_x", "t_g_x_4", "t_g_x_x", 
+                  "t_x_3_4", "t_x_3_x", "t_x_x_4", "t_x_x_x",
+                  "x_g_3_4", "x_g_3_x", "x_g_x_4", "x_g_x_x",
+                  "x_x_3_4", "x_x_3_x", "x_x_x_4", "x_x_x_x"
+                  )
+boolean$Sample<-names(x_x_x_x)
+boolean$Sample<-gsub("\\.", "_", boolean$Sample)
+```
+
 ```{r CD8 summary stats, cache=TRUE}
 df<-CD8
 samples<-split(df, list(df$donor, df$Stim))
@@ -240,6 +431,14 @@ df$Stim<-l[[3]]
 df$Stim<-gsub("X.|SM.", "", df$Stim)
 CD4.OG_summary<-data.frame(df)
 
+df<-boolean
+l<-tstrsplit(df$Sample, "_")
+df$Donor<-l[[1]]
+df$TB<-l[[2]]
+df$SM<-l[[3]]
+df$Stim<-l[[4]]
+boolean<-data.frame(df)
+
 df<-CD8_summary
 df<-data.frame(df)
 l<-tstrsplit(rownames(df), "_")
@@ -379,6 +578,8 @@ setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
 #write.csv(CD4, "OG_CD4_total.csv")
 #write.csv(CD8, "OG_CD8_total.csv")
 #write.csv(GD, "OG_GD_total.csv")
+
+write.csv(boolean, "OG_CD4-boolean.csv")
 
 write.csv(CD3_summary, "OG_CD3-bulk_summary.csv")
 write.csv(CD4_summary, "OG_CD4-bulk_summary.csv")
