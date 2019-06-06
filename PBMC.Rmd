@@ -8,58 +8,170 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE, comment=NA)
 knitr::opts_chunk$set(fig.height = 10.5, fig.width = 7.5)
-library(dplyr)
+library(data.table)
 library(knitr)
 library(ggplot2)
 library(gridExtra)
 library(GGally)
 library(ggpubr)
 library(cowplot)
+library(dplyr)
 ```
 
-```{r}
+```{r source scripts}
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
 ```
 
+```{r ICS prep}
+library(dplyr)
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported")
+#Import information about the samples from my lab notes
+ics<-read.csv("ICS_PBMC.csv")
+#remove samples that are other helminths since we dropped that group
+#Not US, US and Unknown are from the Yerkes donors
+    ics<-dplyr::filter(ics, Helminth.Status=="Schisto+" | Helminth.Status== "Negative" | Helminth.Status== "Not US" |  Helminth.Status=="US" | Helminth.Status== "Unknown")
+#take out all the stuff that isn't consistent like the "TM" in experiment name and the % in viability
+    
+    ics$Viability <- gsub("%/%" , "", ics$Viability)
+    ics$Viability<-as.numeric(gsub("%" , "" , ics$Viability))
+    ics$Exp.Date <- gsub("TM", "", ics$Exp.Date)
 
-```{r viability and cell counts}
-library(ggplot2)
-Donor$TB[grepl("HD", Donor$StudyID)==TRUE]<-"Yerkes"
-palette.four<-c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b")
-grid.arrange(ggplot(Donor, aes(x=SM, y=Viability, fill=TB, alpha=SM)) +
-    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
-    geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
-    facet_grid(~TB, scales="free")+
-    labs(title="Viability", 
-         subtitle="",
-         caption="",
-         x="TB and S. mansoni Status",
-         y="Live Cells (%)"),
+#Remove samples that are being excluded from the ICS analysis
+ics<- dplyr::filter(ics, !(Excluded=="EX"))%>%
+    dplyr::rename(TB = TB.Status, SM = Helminth.Status, Donor = Study.ID, Exp.Name=Exp.Date)%>% 
+    dplyr::select(Donor, TB, SM, Exp.Name, Viability, Cells.Vial, Excluded) #take only the columns you need
 
-ggplot(Donor, aes(x=SM, y=Cells.Vial, fill=TB, alpha=SM)) +
-    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA) +
-    geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_alpha_manual(values=c(0.5,0.5,1))+
-    scale_fill_manual(values = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
-    facet_grid(~TB, scales="free")+
-    labs(title="Cell Counts", 
-         subtitle="",
-         caption="",
-         x="TB and S. mansoni Status",
-         y="Cells/mL)")
+
+ics$Donor<-tstrsplit(ics$Donor, "-")[[1]]
+
+ics$TB<-as.character(ics$TB)
+for(i in 1:length(ics$TB)){
+    if (ics$TB[i]=="Active TB") ics$TB[i]<-"TB"
+    else if (ics$TB[i]=="Healthy Control") ics$TB[i]<-"HC"
+    else if (ics$TB[i]=="LTBI") ics$TB[i]<-"LTBI"
+    else ics$TB[i]<-"N"
+}
+
+ics$SM<-as.character(ics$SM)
+for(i in 1:length(ics$SM)){
+    if (ics$SM[i]=="Negative") ics$SM[i]<-"X"
+    else if (ics$SM[i]=="Schisto+") ics$SM[i]<-"SM"
+    else ics$SM[i]<-"N"
+} 
+
+write.csv(ics, "/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_DonorInfo_clean.csv")
+
+```
+
+```{r OG prep}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported")
+og<-read.csv("OG_PBMC.csv")
+og<-rename(og, Donor=Study.ID, TB=TB.Status, SM=Helminth.Status)%>%
+    filter(Donor!="", Excluded!="EX")%>%
+    select(Donor, TB, SM, Exp.Name, Viability, Cells.Vial, OG.Viability, OG.Cell.., Excluded, Exp.Name, Cheryl)
+
+og$Donor<-tstrsplit(og$Donor, "-")[[1]]
+og$Donor<-gsub("TRU", "", og$Donor)
+
+og$TB<-as.character(og$TB)
+for(i in 1:length(og$TB)){
+    if (og$TB[i]=="Active TB") og$TB[i]<-"TB"
+    else if (og$TB[i]=="Healthy Control") og$TB[i]<-"HC"
+    else if (og$TB[i]=="LTBI") og$TB[i]<-"LTBI"
+    else og$TB[i]<-"N"
+}
+
+og$SM<-as.character(og$SM)
+for(i in 1:length(og$SM)){
+    if (og$SM[i]=="Negative") og$SM[i]<-"X"
+    else if (og$SM[i]=="Schisto+") og$SM[i]<-"SM"
+    else og$SM[i]<-"N"
+}
+
+
+write.csv(og, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_DonorInfo_clean.csv")
+```
+
+```{r combine}
+pbmc<-merge(ics, og, by=c("Donor", "TB", "SM"), all=TRUE)
+names(pbmc)<-c("Donor", "TB" , "SM" , 
+             "ICS_Exp.Name" , "ICS_Viability", "ICS_Cells.Vial", "ICS_Exluded",
+             "OG_Exp.Name" , "PreOG_Viability" , "PreOG_Cells.Vial" , "PostOG_Viability" , "PostOG_Cells.Vial" , "OG_Excluded" , "Cheryl") 
+```
+
+```{r Import Kenya data}
+#Import the clinical enrollment data from the cleaned merged epi file
+    QFT<- read.csv("/Applications/Old Computer/Epi Project/Data_clean/complete-kenya-filledin.csv")
+#The studyIDs of coenrolled people are NK#_TRU# and we want just the NK# to match the lab notes
+    QFT$Donor<-tstrsplit(QFT$StudyID, "_")[[1]]
+#trim the data set to only those study IDs in the lab notes and select the columns you want
+    QFT<-dplyr::select(QFT, Donor, age, sex, QFT, SchistosomaIntensity)%>%
+        dplyr::filter(Donor %in% pbmc$Donor)
+```
+
+```{r merge all}
+        
+#Merge the two tables together and keep all observations since the yerkes donors won't be in the epi data
+    DonorInfo<-merge(pbmc, QFT, by="Donor", all = TRUE)
+#Manual Edits that may get deleted after Kenya script is finalized
+    DonorInfo$TB[DonorInfo$Donor=="NK2183"]<-as.character("HC")
+    DonorInfo$QFT[DonorInfo$Donor=="NK2323"]<-0.04
+    DonorInfo$SM[DonorInfo$Donor=="NK2325"]<-as.character("Unknown")
+    
+#Used in
+    DonorInfo$used<-NA
+    for(i in 1:length(DonorInfo$used)){
+        if(!is.na(DonorInfo$ICS_Exp.Name[i]) & !is.na(DonorInfo$OG_Exp.Name[i]))
+            DonorInfo$used[i]<-"ICS/OG"
+        else if (!is.na(DonorInfo$ICS_Exp.Name[i]) & is.na(DonorInfo$OG_Exp.Name[i]))
+            DonorInfo$used[i]<-"ICS only"
+        else if (is.na(DonorInfo$ICS_Exp.Name[i]) & !is.na(DonorInfo$OG_Exp.Name[i]))
+            DonorInfo$used[i]<-"OG only"
+        else DonorInfo$used[i]<-NA
+    }
+write.csv(DonorInfo, "/Applications/Old Computer/Day Lab/Flow-Data/clean/DonorInfo_clean.csv")
+
+```
+
+```{r viability and cell counts, fig.height=5, fig.width=10}
+pbmc$SM<-gsub("SM", "SM+", pbmc$SM)
+pbmc$SM<-gsub("X", "SM-", pbmc$SM)
+pbmc$SM<-factor(pbmc$SM, levels=c("N", "SM-", "SM+"))
+pbmc$TB<-factor(pbmc$TB, levels=c("N", "HC", "LTBI", "TB"))
+
+grid.arrange(
+    plot_pbmc(pbmc, "ICS_Viability")+labs(y="Viability"),
+    plot_pbmc(pbmc, "ICS_Cells.Vial")+labs(y="Cells/Vial"),
+    top=text_grob("ICS PBMCs", size=20), ncol=2
+)
+
+grid.arrange(
+    plot_pbmc(pbmc, "PreOG_Viability")+labs(y="Viability"),
+    plot_pbmc(pbmc, "PreOG_Cells.Vial")+labs(y="Cells/Vial"),
+    top=text_grob("Pre OG Staining", size=20), ncol=2
+)
+
+
+grid.arrange(
+    plot_pbmc(pbmc, "PreOG_Viability")+labs(y="Viability"),
+    plot_pbmc(pbmc, "PreOG_Cells.Vial")+labs(y="Cells/Vial"),
+    top=text_grob("Post OG Staining", size=20), ncol=2
 )
 ```
 
-
 ```{r}
+melted<-melt(pbmc, id.vars = c("Donor", "TB", "SM"), 
+             measure.vars = c("PreOG_Viability" , "PostOG_Viability"))
+plot_pbmc.pairs(melted)
+melted<-melt(pbmc, id.vars = c("Donor", "TB", "SM"), 
+             measure.vars = c("PreOG_Cells.Vial", "PostOG_Cells.Vial"))
+plot_pbmc.pairs(melted)
+```
+
+
+```{r, eval=FALSE}
 #This was to pick the most robust responders for something else so Idk
 library(dplyr)
 mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_MIMOSA_Complete.csv")
