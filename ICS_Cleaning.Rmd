@@ -8,59 +8,6 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message = FALSE )
 ```
 
-```{r Donor Info}
-library(dplyr)
-setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported")
-#Import information about the samples from my lab notes
-    PBMC<-read.csv("ICS_PBMC.csv")
-#remove samples that are other helminths since we dropped that group
-#Not US, US and Unknown are from the Yerkes donors
-    PBMC<-dplyr::filter(PBMC, Helminth.Status=="Schisto+" | Helminth.Status== "Negative" | Helminth.Status== "Not US" |  Helminth.Status=="US" | Helminth.Status== "Unknown")
-    PBMC$Helminth.Status<-factor(PBMC$Helminth.Status, levels=c("US", "Not US", "Negative", "Schisto+", "Unknown"))
-#order the levels of TB status to be from least to most exposure/disease
-    PBMC$TB.Status = factor(PBMC$TB.Status,levels=c("Naïve","BCG","Healthy Control", "LTBI", "Active TB", "Unknown"))
-#take out all the stuff that isn't consistent like the "TM" in experiment name and the % in viability
-    PBMC$Viability <- gsub("%/%" , "", PBMC$Viability)
-    PBMC$Viability<-gsub("%" , "" , PBMC$Viability)
-    PBMC$Exp.Date <- gsub("TM", "", PBMC$Exp.Date)
-#Some of the samples had weird suffixes that have to be removed to match the epi data  
-    PBMC$Study.ID<-gsub("- plasma", "", PBMC$Study.ID)
-    PBMC$Study.ID<-gsub("-1", "", PBMC$Study.ID)
-    PBMC$Study.ID<-gsub("-0", "", PBMC$Study.ID)
-#Remove samples that are being excluded from the ICS analysis
-PBMC<- dplyr::filter(PBMC, !(Excluded=="EX"))%>%
-    dplyr::rename(TB = TB.Status, SM = Helminth.Status, StudyID = Study.ID)%>% #match the variable names to ICS variable names
-    dplyr::select(StudyID, TB, SM, Viability, Cells.Vial, Excluded) #take only the columns you need
-
-#Import the clinical enrollment data from the cleaned merged epi file
-    QFT<- read.csv("/Applications/Old Computer/Epi Project/Data_clean/complete-kenya-filledin.csv")
-#The studyIDs of coenrolled people are NK#_TRU# and we want just the NK# to match the lab notes
-    QFT$StudyID<-tstrsplit(QFT$StudyID, "_")[[1]]
-#trim the data set to only those study IDs in the lab notes and select the columns you want
-    QFT2<-dplyr::select(QFT, StudyID, age, sex, QFT, SchistosomaIntensity)%>%
-        dplyr::filter(StudyID %in% PBMC$StudyID)
-        
-
-#Merge the two tables together and keep all observations since the yerkes donors won't be in the epi data
-    DonorInfo<-merge(PBMC, QFT2, by="StudyID", all = TRUE)
-#The class of variables gets messed up in the merge so re-class them
-    DonorInfo$Cells.Vial<-as.numeric(as.character(DonorInfo$Cells.Vial))
-    DonorInfo$QFT<-as.numeric(as.character(DonorInfo$QFT))
-#Match the variable names of the ICS data
-    DonorInfo<-dplyr::rename(DonorInfo, Donor = StudyID)
-    DonorInfo$TB<-gsub("Active TB", "TB", DonorInfo$TB)
-    DonorInfo$TB<-gsub("Healthy Control", "HC", DonorInfo$TB)
-    DonorInfo$SM<-gsub("Negative", "X", DonorInfo$SM)
-    DonorInfo$SM<-gsub("Schisto+", "SM", DonorInfo$SM)
-    DonorInfo$SM<-gsub("\\+", "", DonorInfo$SM)
-
-    
-#Manual Edits that may get deleted after Kenya script is finalized
-    DonorInfo$TB[DonorInfo$Donor=="NK2183"]<-as.character("HC")
-    DonorInfo$QFT[DonorInfo$Donor=="NK2323"]<-0.04
-    DonorInfo$SM[DonorInfo$Donor=="NK2325"]<-as.character("Unknown")
-```
-
 ```{r read in all flowjo data tables}
 #change working directory to wherever the exported files are
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported/")
@@ -83,12 +30,16 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/ICS-cleaning-functions.R")
 #and assigns the output of that to the same named list
 #so at every step the list of dataframes gets updated based on the function output 
 
-l<-list(CD4_Counts.csv, CD4_Cytokine.csv, CD4_MFI.csv, CD4_Positive.csv, CD4.csv, 
-        CD8_Counts.csv, CD8_Cytokine.csv, GD_Counts.csv, GD_Cytokine.csv)
+l<-list(CD4_Counts.csv, CD4_Cytokine.csv, CD4_MFI.csv, CD4_new.csv,
+        CD4_phenotype_new.csv, CD4_phenotype.csv, CD4.csv, 
+        CD8_Counts.csv, CD8_Cytokine.csv, 
+        GD_Counts.csv, GD_Cytokine.csv
+        )
 l<-lapply(l, function(x) clean_flowjo_output(x))
 l<-lapply(l, function(x) splitter(x, "Sample", "_", one="Donor", two="TB", three="SM", four="Stim"))
-l<-lapply(l, function(x) remove_samples(x))
 l<-lapply(l, function(x) fix.names(x))
+l<-lapply(l, function(x) remove_samples(x))
+l<-lapply(l, function(x) remove_donors_ICS(x))
 l<-lapply(l, function(x) class_change(x))
 l<-lapply(l, function(x) changeTB(x))
 
@@ -108,6 +59,8 @@ names(CD4_Counts.csv)<-newnames[1:21]
 names(CD8_Counts.csv)<-newnames
 names(GD_Counts.csv)<-newnames
 names(GD_Cytokine.csv)<-newnames
+
+CD4_Cytokine.csv <- dplyr::rename(CD4_Cytokine.csv, TH1.Freq = Th1.Freq)
 ```
 
 ```{r update and re-organize count data}
@@ -129,21 +82,30 @@ xtracounts<-dplyr::select(CD4_Cytokine.csv, Sample, Cyt.Count, TH1.Count, TH1.2.
 #and sticks them in this table
 CD4_Counts.csv<-merge(CD4_Counts.csv, xtracounts, by = "Sample")
 
+#creating variables for TH1 and TH2 that include co-prouducing cells
+CD4_Counts.csv$TH1.Total<-(CD4_Counts.csv$TH1 + CD4_Counts.csv$TH1.2)
+CD4_Counts.csv$TH2.Total<-(CD4_Counts.csv$TH2 + CD4_Counts.csv$TH1.2)
+
+#Creating a total counts column
+CD4_Counts.csv$Total<-CD4_Counts.csv$x_x_x_x + CD4_Counts.csv$Cyt
+
 #then remove them from the other table
 CD4_Cytokine.csv<-dplyr::select(CD4_Cytokine.csv, -Cyt.Count, -TH1.Count, -TH1.2.Count, -TH2.Count)
 ```
 
-```{r create new combo cytokine variables}
+```{r update and organize cytokine variables}
 #If you want to know the double producers without considering the opposite TH cytokines
 library(dplyr)
-filenames = c("CD4_Cytokine.csv", "CD8_Cytokine.csv", "GD_Cytokine.csv")
-l<-list(CD4_Cytokine.csv, CD8_Cytokine.csv, GD_Cytokine.csv)
-l<-lapply(l, function(x) dplyr::mutate(x, G_T = G_4_x_T + G_x_13_T + G_x_x_T,
-                   IL4_IL13 = G_4_13_x + x_4_13_T + x_4_13_x)
-)
-for (i in 1:length(filenames)) {
-    assign(filenames[i], 
-           data.frame(l[i]))}
+CD4_Cytokine.csv<-dplyr::mutate(CD4_Cytokine.csv, G_T = G_4_x_T + G_x_13_T + G_x_x_T,
+                   IL4_IL13 = G_4_13_x + x_4_13_T + x_4_13_x,
+                   TH1.Total = TH1.Freq + TH1.2.Freq,
+                   TH2.Total = TH2.Freq + TH1.2.Freq
+                   )
+```
+
+```{r update and merge phenotype data}
+CD4<-merge(CD4.csv, CD4_new.csv, by=c("Sample","Donor","TB","SM","Stim" ), all=TRUE)
+CD4_phenotype<-merge(CD4_phenotype.csv, CD4_phenotype_new.csv, by=c("Sample","Donor","TB","SM","Stim" ), all=TRUE)
 ```
 
 ```{r Cytokine MFI inclusion}
@@ -196,23 +158,14 @@ GD_Cytokine.csv[GD_Cytokine.csv<0]<-0
 
 ```{r write files to "clean" directory}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
-df.list<-list(CD4_Counts.csv, CD4_Cytokine.csv, CD4_MFI.csv, CD4_Positive.csv,
-              CD4.csv, CD8_Counts.csv, CD8_Cytokine.csv, GD_Counts.csv,
-              GD_Cytokine.csv)
-dfnames<-list("CD4_Counts", "CD4_Cytokine", "CD4_MFI", "CD4_Positive",
-              "CD4", "CD8_Counts", "CD8_Cytokine", "GD_Counts",
-              "GD_Cytokine")
-newfilenames<-paste(dfnames, "clean", date(), ".csv", sep="_")
-#write.csv(df.list[1], file= newfilenames[1])
 write.csv(CD4_Counts.csv, file = "ICS_CD4_Counts_clean.csv")
 write.csv(CD4_Cytokine.csv, file = "ICS_CD4_Cytokine_clean.csv")
 write.csv(CD4_MFI.csv, file = "ICS_CD4_MFI_clean.csv")
-write.csv(CD4_Positive.csv, file = "ICS_CD4_Positive_clean.csv")
-write.csv(CD4.csv, file = "ICS_CD4_clean.csv")
+write.csv(CD4_phenotype, file = "ICS_CD4_phenotype_clean.csv")
+write.csv(CD4, file = "ICS_CD4_clean.csv")
 write.csv(CD8_Counts.csv, file = "ICS_CD8_Counts_clean.csv")
 write.csv(CD8_Cytokine.csv, file = "ICS_CD8_Cytokine_clean.csv")
 write.csv(GD_Counts.csv, file = "ICS_GD_Counts_clean.csv")
 write.csv(GD_Cytokine.csv, file = "ICS_GD_Cytokine_clean.csv")
-write.csv(DonorInfo, file = "ICS_Donor_Info_clean.csv")
 ```
 
