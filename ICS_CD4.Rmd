@@ -21,42 +21,46 @@ library(cowplot)
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 ```
 
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
-cd4<-read.csv("ICS_CD4_clean.csv")
-    #since we don't care about the yerkes donors in our analysis and they mess everything up
-    #we will filter them out
-    data<-filter(cd4, SM!="N")
-    #and then re-level both the SM and TB variable to not confuse our functions
-    data$SM<-factor(data$SM, levels=c("X","SM"))
-    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
-cd4<-data
+cd4a<-read.csv("ICS_CD4_clean.csv")
+cd4b<-read.csv("ICS_CD4_new.csv")
 ```
 
 #Are HC and LTBI different or can we combine?
-
-```{r}
+```{r, fig.height=3, fig.width=6}
 library(knitr)
-#creates a list of character strings for each of the columns of interest
-colnames<-names(dplyr::select(cd4, -X, -Sample, -Donor, -Stim, -TB, -SM))
-for(col in colnames){#this will loop through each character string in the list
-    a<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
-    #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_hc(a, col)
-    print(kable(b, caption=col))
-    
-    c<-filter(a, TB=="HC")
-    #will return the output for each character string in the loop
-    y<-plot_hc(c, "SM", col)
-    d<-filter(a, TB %in% c("HC", "LTBI"))
-    d$TB<-as.factor("combined")
-    x<-plot_hc(d, "SM", col)
-    grid.arrange(y,x, ncol=2)
-    }
+colnames<-names(dplyr::select(cd4a, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(cd4a, Stim=="UN")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
 ```
 
+```{r}
+colnames<-names(dplyr::select(cd4b, -X, -Sample, -Donor, -Stim, -TB, -SM))
+df<-filter(cd4b, Stim=="UN")
+df<-mutate_hc(df)
+for(col in colnames){
+    print(col)
+    print(pvals_hc(df, col))
+    grid.arrange(
+       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
+       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
+       ncol=2
+    )
+}
+```
 
 ##Test and Return Significant Differences
 This will run through each column, and test the relevant comparisons for statistical significance. It also corrects when multiple comparisons are made. Since Healthy Controls are only compared internally, they do not get included in the multiple testing comparison. The function only returns the comparisons that have an initial p-value less than 0.05, which reduces clutter. Everything else is insignificant.
