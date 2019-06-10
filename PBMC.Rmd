@@ -68,9 +68,10 @@ write.csv(ics, "/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_DonorInfo
 ```{r OG prep}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported")
 og<-read.csv("OG_PBMC.csv")
-og<-rename(og, Donor=Study.ID, TB=TB.Status, SM=Helminth.Status)%>%
-    filter(Donor!="", Excluded!="EX")%>%
-    select(Donor, TB, SM, Exp.Name, Viability, Cells.Vial, OG.Viability, OG.Cell.., Excluded, Exp.Name, Cheryl)
+og<-dplyr::rename(og, Donor=Study.ID, TB=TB.Status, SM=Helminth.Status)%>%
+    dplyr::filter(Donor!="", Excluded!="EX")%>%
+    dplyr::select(Donor, TB, SM, Exp.Name, Viability, Cells.Vial, OG.Viability, OG.Cell..,
+                  Excluded, Exp.Name, Cheryl)
 
 og$Donor<-tstrsplit(og$Donor, "-")[[1]]
 og$Donor<-gsub("TRU", "", og$Donor)
@@ -97,7 +98,7 @@ write.csv(og, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_DonorInfo_c
 ```{r combine}
 pbmc<-merge(ics, og, by=c("Donor", "TB", "SM"), all=TRUE)
 names(pbmc)<-c("Donor", "TB" , "SM" , 
-             "ICS_Exp.Name" , "ICS_Viability", "ICS_Cells.Vial", "ICS_Exluded",
+             "ICS_Exp.Name" , "ICS_Viability", "ICS_Cells.Vial", "ICS_Excluded",
              "OG_Exp.Name" , "PreOG_Viability" , "PreOG_Cells.Vial" , "PostOG_Viability" , "PostOG_Cells.Vial" , "OG_Excluded" , "Cheryl") 
 ```
 
@@ -114,11 +115,11 @@ names(pbmc)<-c("Donor", "TB" , "SM" ,
 ```{r merge all}
         
 #Merge the two tables together and keep all observations since the yerkes donors won't be in the epi data
-    DonorInfo<-merge(pbmc, QFT, by="Donor", all = TRUE)
-#Manual Edits that may get deleted after Kenya script is finalized
+    DonorInfo <- merge(pbmc, QFT, by="Donor", all = TRUE)
     DonorInfo$TB[DonorInfo$Donor=="NK2183"]<-as.character("HC")
-    DonorInfo$QFT[DonorInfo$Donor=="NK2323"]<-0.04
-    DonorInfo$SM[DonorInfo$Donor=="NK2325"]<-as.character("Unknown")
+    DonorInfo <- filter(DonorInfo, Donor!="NK2325")
+    DonorInfo$SM[DonorInfo$Donor=="NK2384"]<-as.character("X")
+
     
 #Used in
     DonorInfo$used<-NA
@@ -170,7 +171,6 @@ melted<-melt(pbmc, id.vars = c("Donor", "TB", "SM"),
 plot_pbmc.pairs(melted)
 ```
 
-
 ```{r, eval=FALSE}
 #This was to pick the most robust responders for something else so Idk
 library(dplyr)
@@ -181,9 +181,5 @@ HDscores<-aggregate(score~Donor, HD, FUN=sum)
 HDkeep<-head(arrange(HDscores, score), 10)
 #382 479 487 are BCG
 HDremove<-HD$Donor[!(HD$Donor %in% HDkeep$Donor)]
-CD4<-dplyr::filter(CD4, !(Donor %in% HDremove))
-MFI<-dplyr::filter(MFI, !(Donor %in% HDremove))
-Compass<-dplyr::filter(Compass, !(Donor %in% HDremove))
-Donor<-dplyr::filter(Donor, !(Donor %in% HDremove))
 ```
 
