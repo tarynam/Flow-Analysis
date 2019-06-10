@@ -24,6 +24,17 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/ICS-cleaning-functions.R")
 ```
 
+```{r ICS compass}
+ICS_Compass_scores_complete.csv<-changeTB(ICS_Compass_scores_complete.csv)
+ICS_Compass_scores_complete.csv<-changeHD(ICS_Compass_scores_complete.csv)
+ICS_Compass_scores_complete.csv<-fix.names(ICS_Compass_scores_complete.csv)
+ICS_Compass_scores_complete.csv<-remove_samples(ICS_Compass_scores_complete.csv)
+ICS_Compass_scores_complete.csv<-remove_donors(ICS_Compass_scores_complete.csv)
+write.csv(ICS_Compass_scores_complete.csv,
+          "/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_compass_complete_clean.csv"
+)
+```
+
 ```{r, reformat all data tables}
 #this puts all the dataframes into a list 
 #then applies each function over the dataframes in the list
@@ -39,9 +50,10 @@ l<-lapply(l, function(x) clean_flowjo_output(x))
 l<-lapply(l, function(x) splitter(x, "Sample", "_", one="Donor", two="TB", three="SM", four="Stim"))
 l<-lapply(l, function(x) fix.names(x))
 l<-lapply(l, function(x) remove_samples(x))
-l<-lapply(l, function(x) remove_donors_ICS(x))
+l<-lapply(l, function(x) remove_donors(x))
 l<-lapply(l, function(x) class_change(x))
 l<-lapply(l, function(x) changeTB(x))
+l<-lapply(l, function(x) changeHD(x))
 
 #then we use the assign function to extract each data frame from the list and assign it to the filename
 #associated with it from the beginning
@@ -155,6 +167,19 @@ CD4_Cytokine.csv[CD4_Cytokine.csv<0]<-0
 CD8_Cytokine.csv[CD8_Cytokine.csv<0]<-0
 GD_Cytokine.csv[GD_Cytokine.csv<0]<-0
 ```
+
+```{r remove specific CD8/GD tables}
+pbmc<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_DonorInfo_clean.csv")
+cd8.remove<-filter(pbmc, grepl("CD8", Excluded))$Donor
+CD8_Counts.csv<-filter(CD8_Counts.csv, !(Donor %in% cd8.remove))
+CD8_Cytokine.csv<-filter(CD8_Cytokine.csv, !(Donor %in% cd8.remove))
+
+gd.remove<-filter(pbmc, grepl("CD4-", Excluded))$Donor
+GD_Counts.csv<-filter(GD_Counts.csv, !(Donor %in% cd8.remove))
+GD_Cytokine.csv<-filter(GD_Cytokine.csv, !(Donor %in% cd8.remove))
+
+```
+
 
 ```{r write files to "clean" directory}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
