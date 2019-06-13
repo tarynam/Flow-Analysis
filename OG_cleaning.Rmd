@@ -1,0 +1,67 @@
+---
+title: "OG_cleaning"
+author: "Taryn McLaughlin"
+date: "6/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported/")
+#find all the csv filenames in that directory and put them in a list
+filenames =list.files(pattern="OG")
+#for each name in that list, assign it to the output of read.csv of that name
+#aka read in each file by it's name
+for (i in 1:length(filenames)) 
+    assign(filenames[i], read.csv(filenames[i]))
+```
+
+```{r source functions used in this script}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/OG-cleaning-functions.R")
+```
+
+```{r}
+l<-lapply(ls(pattern="summary.csv"), function(x) get(x))
+
+l<-lapply(l, function(x) split_og(x))
+l<-lapply(l, function(x) clean_ognames(x))
+l<-lapply(l, function(x) remove_samples(x))
+l<-lapply(l, function(x) remove_donors(x))
+l<-lapply(l, function(x) changeTB(x))
+
+filenames<-ls(pattern="summary.csv")
+for(i in 1:15){
+assign(filenames[i], data.frame(l[i]))}
+```
+
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+
+write.csv(OG_CD3_bulk_summary.csv, "OG_CD3_bulk_summary_clean.csv")
+write.csv(OG_CD3_OG_summary.csv, "OG_CD3_OG_summary_clean.csv")
+
+write.csv(OG_CD4_bulk_summary.csv, "OG_CD4_bulk_summary_clean.csv")
+write.csv(OG_CD4_OG_summary.csv, "OG_CD4_OG_summary_clean.csv")
+write.csv(OG_CD4_OG.GT_summary.csv, "OG_CD4_OG.GT_summary_clean.csv")
+write.csv(OG_CD4_OG.IL4_summary.csv, "OG_CD4_OG.IL4_summary_clean.csv")
+write.csv(OG_CD4_OG.TH1_summary.csv, "OG_CD4_OG.TH1_summary_clean.csv")
+write.csv(OG_CD4_OG.TNFa_summary.csv, "OG_CD4_OG.TNFa_summary_clean.csv")
+
+
+write.csv(OG_CD8_bulk_summary.csv, "OG_CD8_bulk_summary_clean.csv")
+write.csv(OG_CD8_OG_summary.csv, "OG_CD8_OG_summary_clean.csv")
+
+write.csv(OG_gd_bulk_summary.csv, "OG_gd_bulk_summary_clean.csv")
+write.csv(OG_GDonly_bulk_summary.csv, "OG_GDonly_bulk_summary_clean.csv")
+write.csv(OG_gd_OG_summary.csv, "OG_gd_OG_summary_clean.csv")
+write.csv(OG_GDonly_OG_summary.csv, "OG_GDonly_OG_summary_clean.csv")
+
+write.csv(OG_counts_summary.csv, "OG_counts_summary_clean.csv")
+```
+
+

@@ -2,41 +2,24 @@
 title: "ICS Phenotyping"
 author: "Taryn McLaughlin"
 date: "12/2/2018"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, comment=NA, warning=FALSE)
 ```
 
-#Total CD4
-```{r total CD4}
-library(dplyr)
-setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
-CD4<-read.csv("CD4_clean.csv")
-    #since we don't care about the yerkes donors in our analysis and they mess everything up
-    #we will filter them out
-    data<-filter(CD4, SM!="N")
-    #and then re-level both the SM and TB variable to not confuse our functions
-    data$SM<-factor(data$SM, levels=c("X","SM"))
-    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
-CD4<-data
-
-#creates a list of character strings for each of the columns of interest
-colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
-for(col in colnames){#this will loop through each character string in the list
-    x<-subset(CD4, CD4$Stim=="UN") #subsets the data to only contain the unstimulated samples
-    #inserts each character string into the column argument of the pvals function written above
-    y<-pvals_helminth(x, col)
-    print(y) #will return the output for each character string in the loop
-}
+```{r}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
 ```
+
 
 #Removing Non-Specific Responses
-```{r AG specific}
+```{r original export}
 #mimosa is the program used to determine whether a response is "real" or not
 #I have previously run this analysis, processed the data, and stored it locally
-mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_MIMOSA_Complete.csv")
+mimosa<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_MIMOSA_Complete.csv")
 mimosa<-dplyr::rename(mimosa, id = Sample)
 #select the columns that will be our sample indicator "id", as well as our "key" columns
 #indicated by the "include" suffix. IF a sample has a 0 in the include column it's related data will be
@@ -44,7 +27,7 @@ mimosa<-dplyr::rename(mimosa, id = Sample)
 antigen.ref<-dplyr::select(mimosa, id, Cyt_include, TH1_include, TH2_include, TH1.2_include)
 
 #read in the data set containing the actual phenotype measurements
-phenotype<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/CD4_Positive_clean.csv")
+phenotype<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_phenotype_clean.csv")
 #we don't have unstimulated data in the mimosa analysis by default so we remove it
 phenotype<-dplyr::filter(phenotype, !(Stim=="UN"))
 #we need matching ids so we create a new column that pastes the donor and the stim together to match the
@@ -89,28 +72,34 @@ for(key in keynames){
 }
 
 phenotype<-dplyr::select(DF, -id)
-write.csv(DF, "CD4_Phenotyping_clean.csv") #store for later
+phenotype<-filter(phenotype, Stim!="UN", SM!="N", TB!="HC")
+phenotype$TB<-factor(phenotype$TB, levels=c("LTBI", "TB"))
+phenotype$SM<-factor(phenotype$SM, levels=c("X", "SM"))
+write.csv(DF, "/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_phenotyping_clean_NAs.csv") #store for later
 ```
 
-#P-values by disease status
 ```{r}
 library(dplyr)
 library(knitr)
 #to see how many values are missing for each column
-kable(colSums(!is.na(phenotype)))
-data<-filter(phenotype, SM!="N")
-data$SM <-factor(data$SM, levels=c("X","SM"))
-data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+l<-split(phenotype, phenotype$Stim)
+y<-lapply(l, function (g) (colSums(!is.na(g[,c(8, 25, 42, 59)]))))
+numbers<-data.frame(rbind(y[[1]], y[[2]], y[[3]], y[[4]], y[[6]]))
+names(numbers)<-gsub("_MFI_CCR4", "", names(numbers))
+row.names(numbers)<-c("PEP", "PMA", "SEA", "SWAP", "WCL")
+kable(numbers, caption = "Number of samples remaining after exclusion by MIMOSA")
 ```
+
+#P-values by disease status
 
 For these, we have to subset the data by stim since the extent to which a column's data is missing depends on the stim. NA values will really mess up the p value functions. Basically the function won't work at all if one of the 6 disease groups doesn't have any observations. It just aborts. I could fix it but I haven't yet. I've only annotated the PMA chunk but the other stims are all the same mechanism.
 
-#PMA Phenotyping
+##PMA
 ```{r PMA}
 library(dplyr)
 library(knitr)
 #since the extent of missingness varies by stim we have to do this each time
-DF<-subset(data, data$Stim=="PMA")
+DF<-subset(phenotype, phenotype$Stim=="PMA")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -119,178 +108,182 @@ y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
 a<-unlist(y[1])
 b<-unlist(y[2])
 c<-unlist(y[3])
-d<-unlist(y[5])
-e<-unlist(y[6])
-#then find the intersection of all the lists. Aka which column names have sufficient data in all 6 TB-SM groups
-colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c, d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-colnames[7:length(colnames)]
+colnames<-test[grep("_", test)]
 for(col in colnames){
-    y<-pvals_helminth(DF, col)
-    print(y)
-}
-```
-#Peptide-Specific Phenotyping
-```{r PEP}
-library(dplyr)
-library(knitr)
-DF<-subset(data, data$Stim=="PEP")
-x<-split(DF, list(DF$TB, DF$SM))
-y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
-a<-unlist(y[1])
-b<-unlist(y[2])
-c<-unlist(y[3])
-d<-unlist(y[5])
-e<-unlist(y[6])
-colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
-colnames<-colnames[7:length(colnames)]
-for(col in colnames){
-    y<-pvals_helminth(DF, col)
-    print(y)
-}
-```
-#WCL-Specific Phenotyping
-```{r WCL}
-library(dplyr)
-library(knitr)
-DF<-subset(data, data$Stim=="WCL")
-x<-split(DF, list(DF$TB, DF$SM))
-y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
-a<-unlist(y[1])
-b<-unlist(y[2])
-c<-unlist(y[3])
-d<-unlist(y[5])
-e<-unlist(y[6])
-colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
-colnames<-colnames[7:length(colnames)]
-for(col in colnames){
-    y<-pvals_helminth(DF, col)
-    print(y)
-}
-```
-#SEA-Specific Phenotyping
-```{r SEA}
-library(dplyr)
-library(knitr)
-DF<-subset(data, data$Stim=="SEA")
-x<-split(DF, list(DF$TB, DF$SM))
-y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
-a<-unlist(y[1])
-b<-unlist(y[2])
-c<-unlist(y[3])
-d<-unlist(y[5])
-e<-unlist(y[6])
-colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
-colnames<-colnames[7:length(colnames)]
-for(col in colnames){
-    y<-pvals_helminth(DF, col)
-    print(y)
-}
-```
-#SWAP-Specific Phenotyping
-```{r SWAP}
-library(dplyr)
-library(knitr)
-DF<-subset(data, data$Stim=="SWAP")
-x<-split(DF, list(DF$TB, DF$SM))
-y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
-a<-unlist(y[1])
-b<-unlist(y[2])
-c<-unlist(y[3])
-d<-unlist(y[5])
-e<-unlist(y[6])
-colnames<-intersect(intersect((intersect(intersect(a,b),c)),d),e)
-colnames<-colnames[7:length(colnames)]
-for(col in colnames){
-    y<-pvals_helminth(DF, col)
-    print(y)
+    y<-pvals_4(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
 }
 ```
 
-#P-Values by Stim
+##PEP
+```{r PEP}
+library(dplyr)
+library(knitr)
+DF<-subset(phenotype, phenotype$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c, d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-test[grep("_", test)]
+for(col in colnames){
+    y<-pvals_4(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+#WCL
+```{r WCL}
+library(dplyr)
+library(knitr)
+DF<-subset(phenotype, phenotype$Stim=="WCL")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c, d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-test[grep("_", test)]
+for(col in colnames){
+    y<-pvals_4(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+#Comparing Mtb-Specific to Total
+```{r}
+total<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_clean.csv")
+total$cell<-"Total"
+names<-c("Donor", "TB", "SM", "Stim", names(phenotype)[grep("TH1_", names(phenotype))])
+mtb_th1<-select(phenotype, names)
+names(mtb_th1)<-gsub("TH1_", "", names(mtb_th1))
+mtb_th1$cell<-"Mtb-Specific"
+test<-rbindlist(list(total, mtb_th1), fill=TRUE)
+    test<-filter(test, SM!="N", TB!="HC") 
+    test$SM<-factor(test$SM, levels=c("X","SM"))
+    test$TB<-factor(test$TB, levels=c("LTBI","TB"))
+test2<-merge(total, mtb_th1, by=c("Donor","TB","SM","Stim"))
+    test2<-filter(test2, SM!="N", TB!="HC") 
+    test2$SM<-factor(test2$SM, levels=c("X","SM"))
+    test2$TB<-factor(test2$TB, levels=c("LTBI","TB"))
+```
+
+##PMA
+```{r}
+df1<-filter(test, Stim=="PMA")
+df2<-filter(test2, Stim=="PMA")
+
+x<-split(subset(mtb_th1, Stim=="PMA"), list(mtb_th1$TB, mtb_th1$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+n<-Reduce(intersect, list(a,b,c, d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-n[5:36]
+for(col in colnames){
+    a<-pvals_total.mtb(df1, col)
+    df2$new<-df2[,paste(col,"x",sep=".")]-df2[,paste(col,"y",sep=".")]
+    b<-pvals_4(df2, "new")
+    if(dim(a)[1]>1 | dim(b)[1]>1){
+        print(col)
+        print(a)
+        print(b)}}
+```
+
+##PEP
+```{r}
+df1<-filter(test, Stim=="PEP")
+df2<-filter(test2, Stim=="PEP")
+
+x<-split(subset(mtb_th1, Stim=="PEP"), list(mtb_th1$TB, mtb_th1$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+n<-Reduce(intersect, list(a,b,c, d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-n[5:36]
+for(col in colnames){
+    a<-pvals_total.mtb(df1, col)
+    df2$new<-df2[,paste(col,"x",sep=".")]-df2[,paste(col,"y",sep=".")]
+    b<-pvals_4(df2, "new")
+    if(dim(a)[1]>1 | dim(b)[1]>1){
+        print(col)
+        print(a)
+        print(b)}}
+```
+
+##WCL
+```{r}
+df1<-filter(test, Stim=="WCL")
+df2<-filter(test2, Stim=="WCL")
+
+x<-split(subset(mtb_th1, Stim=="WCL"), list(mtb_th1$TB, mtb_th1$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+n<-Reduce(intersect, list(a,b,c, d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-n[5:36]
+for(col in colnames){
+    a<-pvals_total.mtb(df1, col)
+    df2$new<-df2[,paste(col,"x",sep=".")]-df2[,paste(col,"y",sep=".")]
+    b<-pvals_4(df2, "new")
+    if(dim(a)[1]>1 | dim(b)[1]>1){
+        print(col)
+        print(a)
+        print(b)}}
+```
+
+
+
+#Comparing by Stim
 In this case, the function is written such that I have to subset to look within each of the TB-SM subsets one by one. I'm working on writing the function to be able to handle it all. I've also included one example graph to see what I'm comparing.
 
 ```{r example ggplot}
 library(ggplot2)
-data<-filter(phenotype, SM!="N")
-    data$SM<-factor(data$SM, levels=c("X","SM"))
-    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
-ggplot(data, aes(y=TH1_GATA3, x=Stim, col=TB))+
-    geom_point(size=3, alpha=0.5)+geom_line(aes(group=Donor))+
-    scale_color_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-    theme_bw()+ theme(legend.position="none")+
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    facet_grid(SM~TB)+coord_cartesian(ylim = c(0,20))+
-    labs(y= "Frequency of GATA3+ Mtb-Specific TH1 Cells")
-```
-
-
-#Healthy Controls SM-
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="HC" & SM=="X")
+data<-filter(phenotype, Stim %in% c("PMA", "PEP", "WCL"))
+data$Stim<-factor(data$Stim, levels=c("PMA","PEP","WCL"))
+colnames<-names(data)[grep("TH1_", names(data))]
 for(col in colnames){
-    y<-pvals_stim(df, col)
+    y<-plot_stim(data, col)
     print(y)
-}
+    }    
 ```
-
-#Healthy Controls SM+
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="HC" & SM=="SM")
-for(col in colnames){
-    y<-pvals_stim(df, col)
-    print(y)
-}
-```
-
-#LTBI SM-
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="LTBI" & SM=="X")
-for(col in colnames){
-    y<-pvals_stim(df, col)
-    print(y)
-}
-```
-
-#LTBI SM+
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="LTBI" & SM=="SM")
-for(col in colnames){
-    y<-pvals_stim(df, col)
-    print(y)
-}
-```
-
-#TB SM-
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="TB" & SM=="X")
-for(col in colnames){
-    y<-pvals_stim(df, col)
-    print(y)
-}
-```
-
-#TB SM+
-```{r}
-library(dplyr)
-colnames<-names(dplyr::select(phenotype, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(phenotype, TB=="TB" & SM=="SM")
-for(col in colnames){
-    y<-pvals_stim(df, col)
-    print(y)
-}
-```
-
-#P values by Stim and Helminth
-I haven't written this up nicely yet but none of it is significant
-
