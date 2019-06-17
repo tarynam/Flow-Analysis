@@ -26,40 +26,7 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
-cd4a<-read.csv("ICS_CD4_clean.csv")
-cd4b<-read.csv("ICS_CD4_new.csv")
-```
-
-#Are HC and LTBI different or can we combine?
-```{r, fig.height=3, fig.width=6}
-library(knitr)
-colnames<-names(dplyr::select(cd4a, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(cd4a, Stim=="UN")
-df<-mutate_hc(df)
-for(col in colnames){
-    print(col)
-    print(pvals_hc(df, col))
-    grid.arrange(
-       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
-       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
-       ncol=2
-    )
-}
-```
-
-```{r}
-colnames<-names(dplyr::select(cd4b, -X, -Sample, -Donor, -Stim, -TB, -SM))
-df<-filter(cd4b, Stim=="UN")
-df<-mutate_hc(df)
-for(col in colnames){
-    print(col)
-    print(pvals_hc(df, col))
-    grid.arrange(
-       plot_hc(df[df$QFT=="QFT-",], "SM", col)+labs(title="QFT- Only"), 
-       plot_hc(df, "SM", col)+labs(title="All Healthy Controls"),
-       ncol=2
-    )
-}
+cd4<-read.csv("ICS_CD4_clean.csv")
 ```
 
 ##Test and Return Significant Differences
@@ -71,7 +38,7 @@ colnames<-names(dplyr::select(cd4, -X, -Sample, -Donor, -Stim, -TB, -SM))
 for(col in colnames){#this will loop through each character string in the list
     a<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_6(a, col)
+    b<-pvals_4(a, col)
     if(dim(b)[1]!=0)
     print(kable(b, caption=col)) #will return the output for each character string in the loop
 }
@@ -80,23 +47,22 @@ for(col in colnames){#this will loop through each character string in the list
 ##Graph things that are significant
 Since SM- and SM+ are literally only different (p<0.05 after corrections) in Healthy Controls, I've graphed only those. It makes sense to me to graph it this way but am open to suggestions. We can start with a claim like "S mansoni on it's own has an influence on ____."  
 
-####Option 1
-```{r, fig.width=8, fig.height=8}
-data<-filter(cd4, cd4$Stim=="UN", cd4$TB=="HC")
-a<-plot_hc(data, "SM", "CXCR3")+labs(title="Surface Marker Expression", subtitle="TH1")
-b<-plot_hc(data, "SM", "CCR4")+labs(title=" ", subtitle="TH2")
-c<-plot_hc(data, "SM", "Tbet")+labs(title="Transcription Factor Expression", subtitle="TH1")
-d<-plot_hc(data, "SM", "GATA3")+labs(title=" ",subtitle="TH2")
+##Significant on Total CD4+ T cells
+```{r, fig.width=12, fig.height=8}
+data<-mutate_TB(filter(cd4, cd4$Stim=="UN"))
+a<-plot_2(data, "disease", "CCR4")
+b<-plot_2(data, "disease", "t_g_x_4")
+c<-plot_2(data, "disease", "GATA3")
+d<-plot_2(data, "disease", "GATA3.P_Tbet.N")
 plot_grid(a,b,c,d, ncol=2)
 ```
 
-####Option 2
-```{r, fig.width=8, fig.height=8}
-a<-plot_hc(data, "SM", "CXCR3")+labs(title="TH1", subtitle="Surface Marker")
-b<-plot_hc(data, "SM", "Tbet")+labs(title=" ", subtitle="Transcription Factor")
-c<-plot_hc(data, "SM", "CCR4")+labs(title="TH2", subtitle="Surface Marker")
-d<-plot_hc(data, "SM", "GATA3")+labs(title=" ", subtitle="Transcription Factor")
-plot_grid(a,b,c,d, ncol=2 )
+##These are significant amongst Peptide-Specific CD4+ T cells
+```{r}
+b<-plot_2(data, "disease", "Tbet")+labs(y="Tbet+ Total CD4+ T cells (%)")
+c<-plot_2(data, "disease", "t_x_x_4")+labs(y="CCR4+Tbet+ Total CD4+ T cells (%)")
+d<-plot_2(data, "disease", "GATA3")+labs(y="GATA3+ Total CD4+ T cells (%)")
+plot_grid(b,c,d, ncol=3)
 ```
 
 ##All Possible Graphs
