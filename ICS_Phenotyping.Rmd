@@ -147,6 +147,25 @@ for(col in colnames){
 }
 ```
 
+```{r}
+test<-mutate_TB(filter(DF, !is.na(TH1_GATA3)))
+kable(xtabs(~TB+SM, test))
+plot_2(test, "disease", "TH1_GATA3")
+plot_2(test, "disease", "TH1_t_x_x_4")
+plot_2(test, "disease", "TH1_t_x_x_x")
+plot_2(test, "disease", "TH1_x_g_3_4")
+plot_2(test, "disease", "TH1_x_g_3_x")
+plot_2(test, "disease", "TH1_x_g_x_4")
+plot_2(test, "disease", "TH1_x_x_3_x")
+
+grid.arrange(plot_2(test, "disease", "TH1_t_x_x_x")+labs(y="Tbet+ CD4+ T cells"),
+plot_2(test, "disease", "TH1_t_x_x_4")+labs(y="CCR4+Tbet+ CD4+ T Cells (%)"),
+    plot_2(test, "disease", "TH1_GATA3")+labs(y="GATA3+ CD4+ T cells (%)"),
+ncol=3
+)
+```
+
+
 #WCL
 ```{r WCL}
 library(dplyr)
@@ -174,6 +193,7 @@ for(col in colnames){
 ```
 
 #Comparing Mtb-Specific to Total
+This is only within TH1 cells
 ```{r}
 total<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_clean.csv")
 total$cell<-"Total"
@@ -244,6 +264,20 @@ for(col in colnames){
         print(a)
         print(b)}}
 ```
+
+
+```{r}
+t<-mutate_TB(filter(df1, !is.na(GATA3)))
+t$cell<-factor(t$cell, levels=c("Total", "Mtb-Specific"))
+plot_compare(t, "cell", "GATA3")
+plot_compare(t, "cell", "t_x_x_4")
+plot_compare(t, "cell", "t_x_x_x")
+plot_compare(t, "cell", "x_g_3_4")
+plot_compare(t, "cell", "x_g_3_x")
+plot_compare(t, "cell", "x_g_x_4")
+plot_compare(t, "cell", "x_x_3_x")
+```
+
 
 ##WCL
 ```{r}
