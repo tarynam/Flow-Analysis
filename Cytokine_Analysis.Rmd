@@ -16,6 +16,8 @@ library(gridExtra)
 library(GGally)
 library(ggpubr)
 library(cowplot)
+library(tidyr)
+library(reshape2)
 ```
 
 ```{r source}
@@ -29,18 +31,16 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 
 CD4<-plot_filter(read.csv("ICS_CD4_Cytokine_clean.csv"))
-CD4b<-plot_filter(read.csv("ICS_Cytokine_new.csv"))
-
 
 CD8<-plot_filter(read.csv("ICS_CD8_Cytokine_clean.csv"))
 
 MFI<-plot_filter(read.csv("ICS_CD4_MFI_clean.csv"))
 
-Compass<-plot_filter(read.csv("ICS_Compass_scores_complete.csv"))
+Compass<-plot_filter(read.csv("ICS_Compass_scores_complete_clean.csv"))
 
 GD<-plot_filter(read.csv("ICS_GD_Cytokine_clean.csv"))
 
-data<-read.csv("ICS_Donor_Info_clean.csv")
+data<-read.csv("ICS_DonorInfo_clean.csv")
 data$TB<-gsub("BCG|Unknown", "Naïve", data$TB)
 data$TB<-factor(data$TB, levels=c("Naïve","Healthy Control","LTBI","Active TB"))
 data$SM<-gsub("US|Not US|Unknown", "Naïve", data$SM)
@@ -76,14 +76,6 @@ for(col in colnames){#this will loop through each character string in the list
     if(dim(b)[1]!=0)
     print(kable(b, caption=col)) #will return the output for each character string in the loop
 }
-colnames<-c("TH1_total", "TH2_total")
-for(col in colnames){#this will loop through each character string in the list
-    a<-subset(CD4b, CD4b$Stim=="WCL") #subsets the data to only contain the unstimulated samples
-    #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_4(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
-}
 ```
 
 ##CFP-10 & ESAT-6
@@ -98,17 +90,35 @@ for(col in colnames){#this will loop through each character string in the list
     if(dim(b)[1]!=0)
     print(kable(b, caption=col)) #will return the output for each character string in the loop
 }
-colnames<-c("TH1_total", "TH2_total")
-for(col in colnames){#this will loop through each character string in the list
-    a<-subset(CD4b, CD4b$Stim=="PEP") #subsets the data to only contain the unstimulated samples
-    #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_4(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
-}
 ```
 
-#Compass Graphs
+```{r}
+grid.arrange(
+    plot_2(subset(df, df$Stim=="PMA"), "disease", "IFNg")+
+        labs(y="IFNg+ CD4+ T cells (%)", title="PMA & Ionomycin"),
+    plot_2(subset(df, df$Stim=="PEP"), "disease", "IFNg")+
+        labs(y="", title="CFP-10 & ESAT-6"),
+    ncol=2) 
+
+grid.arrange(
+    plot_2(subset(df, df$Stim=="PMA"), "disease", "G_T")+
+        labs(y="IFNg+TNFa+ CD4+ T cells (%)", title="PMA & Ionomycin"),
+    plot_2(subset(df, df$Stim=="PEP"), "disease", "G_T")+
+        labs(y="", title="CFP-10 & ESAT-6"),
+    ncol=2) 
+
+grid.arrange(
+    plot_2(subset(df, df$Stim=="PMA"), "disease", "x_4_13_T")+
+        labs(y="IL4+TNFa+ CD4+ T cells (%)", title="PMA & Ionomycin"),
+    plot_2(subset(df, df$Stim=="PEP"), "disease", "x_4_13_T")+
+        labs(y="", title="CFP-10 & ESAT-6"),
+    ncol=2) 
+```
+
+
+#Extra Graphs
+
+##Compass Graphs
 ```{r}
 #CD4 Mtb Responses as measured by Compass
 DF<-dplyr::filter(Compass, TB != "N" & Stim == "WCL" & celltype == "CD4")
@@ -132,30 +142,20 @@ p2<-plot_compass(DF,"PFS")+
 grid.arrange(p1, p2, ncol=2, top="Peptide Pool Scores")
 ```
 
-```{r, fig.width=16, fig.height=12}
-library(dplyr)
-DF<-merge(Compass, dplyr::select(Donor, -X, -TB, -SM), by="Donor")
-ggpairs(dplyr::filter(DF, celltype=="CD4", Stim=="WCL", TB!="N")%>%
-            mutate(disease = paste(TB, SM, sep=" "))%>%
-            dplyr::select(age, sex, FS, PFS, disease),
-        aes(col=disease))
-        
-```
+##Boolean Graphs
+The first graph is just meant to give a snapshot of all the data at once to see if there are weird anomalous data points that we will have to examine. I did not include all the individual data points on any of the graphs because it made it look incredibly cluttered, however I did allow outliers to display.  
 
-#Boolean Graphs
-The first graph is just meant to give a snapshot of all the data at once to see if there are weird anomalous data points that we will have to examine. I did not include all the individual data points on any of the graphs because it made it look incredibly cluttered, however I did allow outliers to display.
-```{r Boolean Graphs, cache=TRUE, echo=FALSE, warning=FALSE}
-library(dplyr)
-library(tidyr)
-library(reshape2)
-library(ggplot2)
-triple_boolean_plot(CD4, "PMA")
-triple_boolean_plot(CD4, "WCL")
-triple_boolean_plot(CD4, "PEP")
+```{r Boolean Graphs, cache=TRUE, echo=FALSE, warning=FALSE, fig.width=20}
+pma<-filter(CD4, Stim=="PMA")
+wcl<-filter(CD4, Stim=="WCL")
+pep<-filter(CD4, Stim=="PEP")
+triple_boolean_plot(pma)
+triple_boolean_plot(wcl)
+triple_boolean_plot(pep)
 ```
 
 
-#T cell Lineage Specific Grouped Analysis
+##T cell Lineage Specific Grouped Analysis
 These are my standard lineage specific groups. 
 ```{r Grouped TH Graphs, echo=FALSE}
 library(dplyr)
@@ -202,7 +202,7 @@ for(col in colnames){#this will loop through each character string in the list
 ```
 \newpage
 
-#Individual Cytokines
+##Individual Cytokines
 These are the frequencies of cells producing individual cytokines without considering whether or not they are single positive, double positive etc. So any cell producing IL-4 is included in the IL-4 analysis.
 
 ```{r Individual Cytokines but not single producers}
@@ -293,26 +293,3 @@ for(col in colnames){#this will loop through each character string in the list
     print(y) #will return the output for each character string in the loop
 }
 ```
-
-```{r}
-library(dplyr)
-library(reshape2)
-library(ggplot2)
-library(knitr)
-
-colnames<-c("TH1_Total" , "TH2_Total" )
-
-### PMA
-for(col in colnames){#this will loop through each character string in the list
-    #inserts each character string into the column argument of the pvals function written above
-    name<-gsub("_", "+", col)
-    y<-plot_with_all_stats(CD4b, "PMA", col)+
-        labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
-             title="PMA & Ionomycin",
-             x="",
-             y=paste(col, "+ CD4+ T cells (%)"))
-    print(y) #will return the output for each character string in the loop
-}
-```
-
-
