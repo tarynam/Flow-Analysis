@@ -14,7 +14,7 @@ library(ggpubr)
 ```
 
 ```{r load data}
-DonorInfo<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_Donor_Info_clean.csv")
+DonorInfo<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/DonorInfo_clean.csv")
 DonorInfo<-filter(DonorInfo, SM %in% c("X", "SM"))
 DonorInfo$SM<-factor(DonorInfo$SM, levels=c("X", "SM"))
 DonorInfo$TB<-factor(DonorInfo$TB, levels=c("HC", "LTBI", "TB"))
@@ -26,6 +26,7 @@ my_comparisons <- list(c("HC_SM", "HC_X"), c("LTBI_SM", "LTBI_X"), c("TB_SM", "T
                        c("HC_SM", "LTBI_SM"), c("TB_SM", "LTBI_SM"), c("HC_SM", "TB_SM"),
                        c("HC_X", "LTBI_X"), c("TB_X", "LTBI_X"), c("HC_X", "TB_X"))
 DonorInfo$SchistosomaIntensity[DonorInfo$SM=="X"]<-NA
+
 ```
 
 Generating stuff by hand
@@ -139,8 +140,7 @@ mediqr<- c("age", "QFT", "SchistosomaIntensity")
 #Total Population
 table1 <- CreateTableOne(vars = listVars, data = DonorInfo, factorVars = catVars,
                          strata = c("TB", "SM"))
-test<- print(table1, showAllLevels = TRUE, nonnormal = mediqr, quote = FALSE, noSpaces = TRUE,
-             printToggle = FALSE)
+test<- print(table1, showAllLevels = TRUE, nonnormal = mediqr, quote = FALSE, noSpaces = TRUE, printToggle = FALSE, na.print=FALSE)
 
 tableHC <- CreateTableOne(vars = listVars, data = filter(DonorInfo, TB=="HC"), factorVars = catVars, strata = "SM")
 testHC<- print(tableHC, showAllLevels = TRUE, nonnormal = mediqr, quote = FALSE, noSpaces = TRUE,
@@ -164,11 +164,14 @@ http://api.rpubs.com/isaac_subirana/compareGroups-demo
 ```{r compare groups, echo = FALSE}
 
 library(compareGroups)
-res.total<-descrTable(~ age + sex + QFT + SchistosomaIntensity, data = DonorInfo)
-res <- compareGroups(SM ~ age + sex + QFT + SchistosomaIntensity, data = DonorInfo, 
-                     method = c(age = 2, QFT = 2, SchistosomaIntensity = 2, sex = 3))
+res.total<-descrTable(~ age + sex + QFT + SchistosomaIntensity, data = DonorInfo, na.action = na.exclude)
 
-restab <- createTable(res, type = 1, hide.no = "no", show.n = FALSE)
+res <- compareGroups(SM ~ age + sex + QFT + SchistosomaIntensity, data = DonorInfo,
+    method = c(age = 2, QFT = 2, SchistosomaIntensity = 2, sex = 3))
+
+restab <- createTable(res, type = 1, hide.no = "no", show.n = FALSE,
+                      show.p.overall = TRUE, show.p.mul = TRUE,
+                      q.type=c(2,3))
 test<-strataTable(restab, "TB")
 export2md(test, header.labels = c(p.overall = "p-value"))
 export2md(res.total)
@@ -176,7 +179,7 @@ export2md(res.total)
 ```
 
 Plotting stuff against age and sex
-```{r age and sex vs, cache = TRUE}
+```{r age and sex vs, cache = TRUE, eval=FALSE}
 compass<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_Compass_scores_complete.csv")
 CD4<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/CD4_clean.csv")
 CD4_cyt<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/CD4_Cytokine_clean.csv")
