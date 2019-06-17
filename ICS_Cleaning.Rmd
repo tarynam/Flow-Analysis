@@ -120,6 +120,33 @@ CD4<-merge(CD4.csv, CD4_new.csv, by=c("Sample","Donor","TB","SM","Stim" ), all=T
 CD4_phenotype<-merge(CD4_phenotype.csv, CD4_phenotype_new.csv, by=c("Sample","Donor","TB","SM","Stim" ), all=TRUE)
 ```
 
+```{r create new combo variables from exported boolean phenotype}
+CD4<-mutate(CD4,
+      #These all follow the same format
+       #IFNg is the new variable. it gets assign the row sum of all the columns that have a G in the name
+       TbetCXCR3=  rowSums(CD4[,grep("t_._3_.", names(CD4))]),
+       TbetCCR4=  rowSums(CD4[,grep("t_._._4", names(CD4))]),
+       GATA3CXCR3=  rowSums(CD4[,grep("._g_3_.", names(CD4))]),
+       GATA3CCR4=  rowSums(CD4[,grep("._g_._4", names(CD4))])
+)
+
+CD4_phenotype<-mutate(CD4_phenotype,
+      #These all follow the same format
+       #IFNg is the new variable. it gets assign the row sum of all the columns that have a G in the name
+       TH1_TbetCXCR3=  rowSums(CD4_phenotype[,grep("TH1_t_._3_.", names(CD4_phenotype))]),
+       TH1_TbetCCR4=  rowSums(CD4_phenotype[,grep("TH1_t_._._4", names(CD4_phenotype))]),
+       TH1_GATA3CXCR3=  rowSums(CD4_phenotype[,grep("TH1_._g_3_.", names(CD4_phenotype))]),
+       TH1_GATA3CCR4=  rowSums(CD4_phenotype[,grep("TH1_._g_._4", names(CD4_phenotype))]),
+      TH2_TbetCXCR3=  rowSums(CD4_phenotype[,grep("TH2_t_._3_.", names(CD4_phenotype))]),
+      TH2_TbetCCR4=  rowSums(CD4_phenotype[,grep("TH2_t_._._4", names(CD4_phenotype))]),
+      TH2_GATA3CXCR3=  rowSums(CD4_phenotype[,grep("TH2_._g_3_.", names(CD4_phenotype))]),
+      TH2_GATA3CCR4=  rowSums(CD4_phenotype[,grep("TH2_._g_._4", names(CD4_phenotype))])
+)
+
+
+```
+
+
 ```{r Cytokine MFI inclusion}
 #duplicate and rename the counts table so you don't fuck it up but can still use it
 counts.ref<-CD4_Counts.csv
@@ -179,7 +206,6 @@ GD_Counts.csv<-filter(GD_Counts.csv, !(Donor %in% cd8.remove))
 GD_Cytokine.csv<-filter(GD_Cytokine.csv, !(Donor %in% cd8.remove))
 
 ```
-
 
 ```{r write files to "clean" directory}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
