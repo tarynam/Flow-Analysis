@@ -24,15 +24,413 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
-cd4<-read.csv("ICS_CD4_clean.csv")
+cd4<-plot_filter(read.csv("ICS_CD4_clean.csv"))
 
 CD4<-plot_filter(read.csv("ICS_CD4_Cytokine_clean.csv"))
 
-phen<-read.csv("ICS_CD4_phenotyping_clean_NAs.csv")
+phen<-plot_filter(read.csv("ICS_CD4_phenotyping_clean_NAs.csv"))
 ```
 
-#Are HC and LTBI different or can we combine?
 
+##Actual analysis
+
+```{r fig.width=16, fig.height=8}
+HC<-mutate_hc(subset(cd4, cd4$Stim=="UN"))
+test<-melt(HC, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = grep("._._._.", names(cd4)))
+test2<-filter(test, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#1a9850"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE)+
+    theme(legend.position="none")+
+    labs(title="Lineage Marker Expression on Total CD4+ T cells in Healthy Adults")
+```
+
+
+```{r Figure 1a, }
+HC<-mutate_hc(subset(cd4, cd4$Stim=="UN"))
+HC_T<-ggplot(HC, aes(x=SM, y=Tbet))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$Tbet)*1.1),
+                       label.x.npc = "center")+
+    labs(title="",
+         x="",
+         y=paste("Total T-bet+ CD4+ T cells (%)"))
+
+HC_T3<-ggplot(HC, aes(x=SM, y=TbetCXCR3))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +   
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TbetCXCR3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="",
+         x="",
+         y=paste("T-bet+CXCR3+ CD4+ T cells (%)"))
+
+HC_T4<-ggplot(HC, aes(x=SM, y=TbetCCR4))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +   
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TbetCXCR3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="",
+         x="",
+         y=paste("T-bet+CXCR3+ CD4+ T cells (%)"))
+
+
+HC_lin<-grid.arrange(HC_T, HC_T3, HC_T4, ncol=3, top=text_grob("Expression of TH1 Lineage Markers", size=20))
+HC_lin
+```
+
+###Difference aesthetics Same Cytokine Graph
+```{r}
+HC<-mutate_hc(filter(CD4, Stim=="PMA"))
+test<-melt(HC, id.vars=c("Donor", "TB", "SM"), measure.vars = c("TH1.Freq", "TH2.Freq", "TH1.2.Freq"))
+
+one<-ggplot(test, aes(x=SM, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+      geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")+
+    facet_wrap(~variable, scales="free")+
+    labs(title="Cytokine Frequencies",
+         x="",
+         y=paste("Freq of Cytokine+ CD4+ T cells (%)"))
+
+two<-ggplot(test, aes(x=SM, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+      geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")+
+    facet_wrap(~variable)+
+    labs(title="Cytokine Frequencies",
+         x="",
+         y=paste("Freq of Cytokine+ CD4+ T cells (%)"))
+
+three<-ggplot(test, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+      geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")+
+    labs(title="Cytokine Frequencies",
+         x="",
+         y=paste("Freq of Cytokine+ CD4+ T cells (%)"))
+
+one
+two
+three
+```
+
+##Different Ways to Visualize TH1 and TH2 cell marker expression
+```{r Figure 1b, hide=TRUE}
+HC<-mutate_hc(filter(phen, Stim=="PMA"));
+HC_1T<-ggplot(HC, aes(x=SM, y=TH1_Tbet))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH1_Tbet)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH1 Cells",
+         x="",
+         y=paste("Total T-bet+ CD4+ T cells (%)"))
+HC_2T<-ggplot(HC, aes(x=SM, y=TH2_Tbet))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH1_Tbet)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH2 Cells",
+         x="",
+         y=paste(""))
+
+HC_1G<-ggplot(HC, aes(x=SM, y=TH1_GATA3))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH2_GATA3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH1 Cells",
+         x="",
+         y=paste("Total GATA3+ CD4+ T cells (%)"))
+HC_2G<-ggplot(HC, aes(x=SM, y=TH2_GATA3))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH2_GATA3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH2 Cells",
+         x="",
+         y=paste(""))
+
+
+HC_13<-ggplot(HC, aes(x=SM, y=TH1_CXCR3))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH1_CXCR3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH1 Cells",
+         x="",
+         y=paste("Total CXCR3+ CD4+ T cells (%)"))
+HC_23<-ggplot(HC, aes(x=SM, y=TH2_CXCR3))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH1_CXCR3)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH2 Cells",
+         x="",
+         y=paste(""))
+
+
+HC_14<-ggplot(HC, aes(x=SM, y=TH1_CCR4))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH2_CCR4)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH1 Cells",
+         x="",
+         y=paste("Total CXCR3+ CD4+ T cells (%)"))
+HC_24<-ggplot(HC, aes(x=SM, y=TH2_CCR4))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB, alpha=SM)) +
+    geom_jitter(width=.1,height=0, shape=16,size=2)+
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_x_discrete(labels=c("SM-", "SM+"))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.text.x = element_text(vjust=0.5)) + 
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 12))+
+    stat_compare_means(label = "p.format", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE, label.y= (max(HC$TH2_CCR4)*1.1),
+                       label.x.npc = "center")+
+    labs(title="TH2 Cells",
+         x="",
+         y=paste(""))
+```
+
+```{r, fig.width=16, fig.height=8}
+one.b<-grid.arrange(
+    HC_T<-grid.arrange(HC_1T, HC_2T, ncol=2, top=text_grob("T-bet", size=20)),
+    HC_3<-grid.arrange(HC_13, HC_23, ncol=2, top=text_grob("CXCR3", size=20)),
+    HC_G<-grid.arrange(HC_1G, HC_2G, ncol=2, top=text_grob("GATA3", size=20)),
+    HC_4<-grid.arrange(HC_14, HC_24, ncol=2, top=text_grob("CCR4", size=20)),
+    ncol=4)
+```
+
+```{r}
+HC<-mutate_hc(filter(phen, Stim=="PMA"));
+vars <- names(HC)[grep("TH1_|TH2_", names(HC))]
+vars1 <- c("TH1_Tbet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4",
+           "TH2_Tbet", "TH2_GATA3", "TH2_CXCR3", "TH2_CCR4")
+vars2 <- vars[grep(".P|.N", vars)]
+vars3 <- vars[grep("._._._.", vars)]
+
+```
+
+```{r}
+test<-melt(HC, id.vars=c("Donor", "TB", "SM"), vars1)
+test$subset<-tstrsplit(test$variable, "_")[[1]]
+test$subset<-paste(test$subset, "Cytokine + CD4+ T Cells", sep=" ")
+test$variable<-gsub("TH1_","", test$variable)
+test$variable<-gsub("TH2_","", test$variable)
+
+plot_markers<-function(df, marker){
+    ggplot(df[df$variable==marker,], aes(x=SM, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+    geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text = element_text(size = 14))+
+    facet_grid(variable~subset, scales="free")+
+    labs(y="", x="")+
+    stat_compare_means(label = "p.signif", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")}
+
+grid.arrange(
+    plot_markers(test, "Tbet")+theme(axis.text.x = element_blank()),
+    plot_markers(test, "GATA3")
+        +theme(axis.text.x = element_blank())+theme(strip.text.x = element_blank()),
+    plot_markers(test, "CXCR3")
+        +theme(axis.text.x = element_blank())+theme(strip.text.x = element_blank()),
+    plot_markers(test, "CCR4")
+        +theme(strip.text.x = element_blank())+        scale_x_discrete(labels=c("SM-", "SM+")),
+    ncol=1
+)
+```
+
+
+
+```{r fig.width=16, fig.height=10}
+test<-melt(HC, id.vars=c("Donor", "TB", "SM"), vars2)
+test$subset<-tstrsplit(test$variable, "_")[[1]]
+test$subset<-paste(test$subset, "Cytokine Producing CD4+ T Cells", sep=" ")
+test$variable<-gsub("TH1_","", test$variable)
+test$variable<-gsub("TH2_","", test$variable)
+test<-filter(test, variable!="CCR4.N_CXCR3.N" , variable!="GATA3.N_Tbet.N")
+
+ggplot(test, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+    geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 20))+
+    facet_wrap(~subset, ncol=1)+
+    stat_compare_means(label = "p.signif", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")
+
+test<-melt(HC, id.vars=c("Donor", "TB", "SM"), vars3)
+test$subset<-tstrsplit(test$variable, "_")[[1]]
+test$subset<-paste(test$subset, "Cytokine Producing CD4+ T Cells", sep=" ")
+test$variable<-gsub("TH1_","", test$variable)
+test$variable<-gsub("TH2_","", test$variable)
+test<-filter(test, -x_x_x_x)
+
+ggplot(test, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 0.9), outlier.shape = NA) +
+    geom_point(position=position_jitterdodge(dodge.width=0.9)) +
+    scale_fill_manual(values="#1a9850")+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(text = element_text(size=14)) +
+    theme(strip.text.x = element_text(size = 20))+
+    facet_wrap(~subset, ncol=1)+
+    stat_compare_means(label = "p.signif", hide.ns = TRUE, size = 4, 
+                       method="wilcox.test", paired = FALSE,
+                       label.x.npc = "center")
+```
+
+
+#Proof that we can combine hc and ltbi
 ##Lineage Markers on UN
 
 ```{r, fig.height=3, fig.width=6}
@@ -86,4 +484,5 @@ for(col in colnames){
 }
 ```
 
-##Actual analysis
+
+
