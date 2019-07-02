@@ -27,14 +27,18 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 cd4<-read.csv("ICS_CD4_clean.csv")
-```
+grid.arrange(
+    grid.arrange(
+        grid.arrange(tableGrob(xtabs(~TB+SM, test)), HC_T, ncol=2),
+        two, ncol=1), 
+            b, ncol=2)```
 
 ##Test and Return Significant Differences
 This will run through each column, and test the relevant comparisons for statistical significance. It also corrects when multiple comparisons are made. Since Healthy Controls are only compared internally, they do not get included in the multiple testing comparison. The function only returns the comparisons that have an initial p-value less than 0.05, which reduces clutter. Everything else is insignificant.
 ```{r}
 library(knitr)
 #creates a list of character strings for each of the columns of interest
-colnames<-names(dplyr::select(cd4, -X, -Sample, -Donor, -Stim, -TB, -SM))
+colnames<-names(dplyr::select(cd4, -X, -X.1,-Sample, -Donor, -Stim, -TB, -SM))
 for(col in colnames){#this will loop through each character string in the list
     a<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
@@ -48,50 +52,51 @@ for(col in colnames){#this will loop through each character string in the list
 Since SM- and SM+ are literally only different (p<0.05 after corrections) in Healthy Controls, I've graphed only those. It makes sense to me to graph it this way but am open to suggestions. We can start with a claim like "S mansoni on it's own has an influence on ____."  
 
 ##Significant on Total CD4+ T cells
-```{r, fig.width=12, fig.height=8}
+```{r, fig.width=16, fig.height=6}
 data<-mutate_TB(filter(cd4, cd4$Stim=="UN"))
 a<-plot_2(data, "disease", "CCR4")
 b<-plot_2(data, "disease", "t_g_x_4")
 c<-plot_2(data, "disease", "GATA3")
 d<-plot_2(data, "disease", "GATA3.P_Tbet.N")
-plot_grid(a,b,c,d, ncol=2)
+e<-plot_2(data, "disease", "GATA3CCR4")
+plot_grid(a,b,ncol=2)
+plot_grid(c,d,e,ncol=3)
 ```
 
 ##These are significant amongst Peptide-Specific CD4+ T cells
-```{r}
+```{r, fig.width=12, fig.height=6}
 b<-plot_2(data, "disease", "Tbet")+labs(y="Tbet+ Total CD4+ T cells (%)")
 c<-plot_2(data, "disease", "t_x_x_4")+labs(y="CCR4+Tbet+ Total CD4+ T cells (%)")
 d<-plot_2(data, "disease", "GATA3")+labs(y="GATA3+ Total CD4+ T cells (%)")
 plot_grid(b,c,d, ncol=3)
 ```
 
+
 ##All Possible Graphs
 For posterity... But I doubt we will include any of these
 
-###MFI
-```{r}
-for(col in colnames[1:4]){#this will loop through each character string in the list
-    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
-    #inserts each character string into the column argument of the pvals function written above
-    y<-plot_6(x, "SM", col)+
-        labs(subtitle=paste(gsub("_", " ", col), "on CD4+ T cells"), 
-             caption="",
-             x="",
-             y=gsub("_", " ", col))
-    print(y) #will return the output for each character string in the loop
-}
+```{r, fig.width=16, fig.height=6}
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = grep("._._._.", names(cd4)))
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    labs(title="Lineage Marker Expression on Total CD4+ T cells",
+         y="Frequency of Marker+ CD4+ T cells (%)")
 ```
-
 
 ###Surface Markers
 ```{r}
 for(col in colnames[5:10]){#this will loop through each character string in the list
-    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    x<-plot_filter(subset(cd4, cd4$Stim=="UN")) #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub(".P", "+", col)
     name<-gsub("_","", name)
     name<-gsub(".N", "-", name)
-    y<-plot_6(x, "SM", col)+
+    y<-plot_with_all_stats(x, col)+
         labs(subtitle=paste(name, "(% CD4+ T cells)"), 
              caption="",
              x="",
@@ -102,16 +107,15 @@ for(col in colnames[5:10]){#this will loop through each character string in the 
 
 
 ###Transcription Factors
-
 As you can see there is one crazy looking "outlier" in GATA3 from NK2586. 
 ```{r}
 for(col in colnames[11:16]){#this will loop through each character string in the list
-    x<-subset(cd4, cd4$Stim=="UN") #subsets the data to only contain the unstimulated samples
+    x<-plot_filter(subset(cd4, cd4$Stim=="UN")) #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub(".P", "+", col)
     name<-gsub("_","", name)
     name<-gsub(".N", "-", name)
-    y<-plot_6(x, "SM", col)+
+    y<-plot_with_all_stats(x, col)+
         labs(subtitle=paste(name, "(% CD4+ T cells)"), 
              caption="",
              x="",
@@ -120,18 +124,29 @@ for(col in colnames[11:16]){#this will loop through each character string in the
 }
 ```
 
-#Side Note
-This is the statistical evaluation of the data set without NK2586 the outlier GATA3 donor to see if it makes a difference.
+##Combination Gates
 ```{r}
-colnames2<-colnames[grep("GATA", colnames)]
-for(col in colnames2){#this will loop through each character string in the list
-    a<-filter(cd4, Stim=="UN", Donor!="NK2586") #subsets the data to only contain the unstimulated samples
+for(col in colnames[17:48]){#this will loop through each character string in the list
+    x<-plot_filter(subset(cd4, cd4$Stim=="UN")) #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_6(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
+    y<-plot_with_all_stats(x, col)+
+        labs(subtitle=col, 
+           x="",
+           y="")
+    print(y) #will return the output for each character string in the loop
 }
 ```
 
-
-
+###MFI
+```{r}
+for(col in colnames[1:4]){#this will loop through each character string in the list
+    x<-plot_filter(subset(cd4, cd4$Stim=="UN")) #subsets the data to only contain the unstimulated samples
+    #inserts each character string into the column argument of the pvals function written above
+    y<-plot_with_all_stats(x, col)+
+        labs(subtitle=paste(gsub("_", " ", col), "on CD4+ T cells"), 
+             caption="",
+             x="",
+             y=gsub("_", " ", col))
+    print(y) #will return the output for each character string in the loop
+}
+```
