@@ -6,75 +6,64 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA)
+```
+
+```{r}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 ```
 
 ```{r read in data files}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
-CD4_summary<-read.csv("OG_CD4-bulk_summary.csv")
-CD4_summary$SM<-factor(CD4_summary$SM, levels=c("X", "SM"))
-CD4_OG_summary<-read.csv("OG_CD4-OG_summary.csv")
-CD4_OG_summary$SM<-factor(CD4_OG_summary$SM, levels=c("X", "SM"))
-PBMC<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/exported/OG_PBMC.csv")
+CD4<-dplyr::select(read.csv("OG_CD4_bulk_summary_clean.csv"), -X, -X.1)
+CD4_OG<-dplyr::select(read.csv("OG_CD4_OG_summary_clean.csv"), -X, -X.1)
+CD4_OG_TH1<-dplyr::select(read.csv("OG_CD4_OG.TH1_summary_clean.csv"), -X, -X.1)
+CD4_OG_GT<-dplyr::select(read.csv("OG_CD4_OG.TH1_summary_clean.csv"), -X, -X.1)
+CD4_OG_TNF<-dplyr::select(read.csv("OG_CD4_OG.TNFa_summary_clean.csv"), -X, -X.1)
+PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
+    PBMC<-PBMC[grep("OG", PBMC$used),]
+mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
+    mimosa<-filter(mimosa, celltype=="CD4" & Exprate==0.01)
 ```
 
-```{r functions and stuff}
-source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
-source("/Users/tarynam/Desktop/Miscellaneous-Scripts/Plotting_1902.R")
-```
 
-```{r PBMC}
-PBMC<-filter(PBMC, !is.na(Study.ID))
-PBMC<-filter(PBMC, Helminth.Status %in% c("Negative", "Schisto+"))
-PBMC$Helminth.Status<-factor(PBMC$Helminth.Status, levels=c("Negative", "Schisto+"))
-PBMC$TB.Status<-factor(PBMC$TB.Status, levels=c("Healthy Control", "LTBI", "Active TB"))
-PBMC<-filter(PBMC, !(Study.ID=="NK2208" & Exp.Name=="TM181216"))
-PBMC<-filter(PBMC, !(Study.ID=="NK2306" & Exp.Name=="TM181206"))
-PBMC<-filter(PBMC, !(Study.ID=="NK2353" & Exp.Name=="TM190411"))
-PBMC<-filter(PBMC, !(Study.ID=="NK2384" & Exp.Name=="TM190411"))
-PBMC$TB<-PBMC$TB.Status
-PBMC$SM<-PBMC$Helminth.Status
-
-grid.arrange(plot_6(PBMC, "SM", "Viability")+labs(y="Viability"),
-    plot_6(PBMC, "SM", "Cells.Vial")+labs(y="Cell Count"),
-    ncol=2
-)
-
-plot_pairs<-function(data, xval, yval){
-    ggplot(data, aes(x=data[,xval], y=data[,yval]))+
-        geom_point(size=3, aes(color=TB, alpha=SM)) +
-        geom_line(aes(group=Study.ID))+
-        scale_color_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-        scale_alpha_manual(values=c(0.5,1))+
-        facet_grid(~SM)+
-        theme_bw()+ theme(legend.position="bottom")+
-        theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-        theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
-        facet_grid(SM~TB, scale="free")+
-        stat_compare_means(label = "p.format", p.adjust.method = "fdr", hide.ns = TRUE, size = 4, 
-                           method="wilcox.test", paired = TRUE, label.y= (max(data[,yval])*1.1))
+#pep
+```{r pep total}
+library(dplyr)
+library(knitr)
+DF<-subset(CD4, CD4$Stim=="WCL")
+colnames<-names(numeric_only(DF))
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
 }
-
-melt<-melt(PBMC, id.vars=c("Study.ID", "TB", "SM"), measure.vars = c("Viability", "OG.Viability"))
-plot_pairs(melt, "variable", "value")+labs(y="Viability", x="Time")
-
-melt<-melt(PBMC, id.vars=c("Study.ID", "TB", "SM"), measure.vars = c("Cells.Vial", "OG.Cell.."))
-plot_pairs(melt, "variable", "value")+labs(y="Count", x="Time")
 ```
-
 
 ```{r}
+test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+kable(xtabs(~TB+SM, test))
+plot_2(test, "disease", "OG_freq")
+```
+
+
+#Removing Low Responders
+```{r}
 library(dplyr)
-antigen.ref<-MIMOSA.Results
-antigen.ref$id<-rownames(antigen.ref)
-antigen.ref$id<-gsub("_Treatment", "", antigen.ref$id)
+antigen.ref<-mimosa
+antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
 antigen.ref<-arrange(antigen.ref, id)
 
-phenotype<-CD4_OG_summary
+#Total OG
+phenotype<-CD4_OG
 phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
 phenotype<-arrange(phenotype, id)
 
-remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7)$id
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
 print(length(remove)) #see how many sample ids will be excluded
 numeric.only <- function(X,...){
       returnCols <- names(X)
@@ -83,124 +72,342 @@ numeric.only <- function(X,...){
 }
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+OG<-phenotype
+
+#OG GT
+phenotype<-CD4_OG_GT
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+GT<-phenotype
+
+#OG TH1
+phenotype<-CD4_OG_TH1
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+TH1<-phenotype
+
+#OG TNF
+phenotype<-CD4_OG_TNF
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+TNF<-phenotype
 ```
 
-#Pep
-```{r}
-df<-filter(CD4_summary, Stim=="PEP")
-top<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
-    geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,1))+
-    facet_grid(~TB)+
-    theme_classic()+ 
-    theme(legend.position="none")+
-    theme(axis.title.x=element_blank(),axis.text.x=element_blank(), axis.ticks.x=element_blank())+
-    theme(text = element_text(size=20)) +   
-    facet_grid(~TB)+
-    labs(y="", x="")+
-    scale_x_discrete(labels=c("SM-", "SM+"))+
-    stat_compare_means(label = "p.format")+
-    coord_cartesian(ylim=c(2,30))
-
-bottom<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
-    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA, aes(fill=TB)) +
-    geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,1))+
-    facet_grid(~TB)+
-    theme_classic()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    theme(strip.background = element_blank(),strip.text.x = element_blank())+
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
-    facet_grid(~TB)+
-    labs(y="", x="")+
-    scale_x_discrete(labels=c("SM-", "SM+"))+
-    coord_cartesian(ylim=c(0,2))
-
-grid.arrange(top, bottom, ncol=1, heights=c(4,8))
-
-
-
-
-
-df<-filter(phenotype, Stim=="PEP", TB!="HC")
-test<-filter(phenotype, Stim=="PEP", TB!="HC", !is.na(IFNg_freq))
-kable(xtabs(~TB+SM, test))
-df$SM<-factor(df$SM, levels=c("X", "SM"))
-grid.arrange(plot_2(df, "SM", "IFNg_freq")+labs(y="IFNg+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "TNFa_freq")+labs(y="TNFa+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "IL4_freq")+labs(y="IL-4+ Proliferating CD4+ T cells (%)", x=""),
-             ncol=3
-             
-)
-
-grid.arrange(plot_2(df, "SM", "CXCR3_freq")+labs(y="CXCR3+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "CCR4_freq")+labs(y="CCR4+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "Tbet_freq")+labs(y="Tbet+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "GATA3_freq")+labs(y="GATA3+ Proliferating CD4+ T cells (%)", x=""),
-             ncol=4
-             
-)
+#SEB
+```{r SEB}
+library(dplyr)
+library(knitr)
+DF<-subset(OG, OG$Stim=="SEB")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
 ```
 
-#WCL
 ```{r}
-df<-filter(CD4_summary, Stim=="WCL")
-top<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
-    geom_boxplot(size=1, position=position_dodge(width = 1), 
-        outlier.shape = NA, aes(fill=TB)) +geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,1))+
-    facet_grid(~TB)+
-    theme_classic()+ 
-    theme(legend.position="none")+
-    theme(axis.title.x=element_blank(),axis.text.x=element_blank(), axis.ticks.x=element_blank())+
-    theme(text = element_text(size=20)) +   
-    facet_grid(~TB)+
-    labs(y="", x="")+
-    scale_x_discrete(labels=c("SM-", "SM+"))+
-    stat_compare_means(label = "p.format")+
-    coord_cartesian(ylim=c(5,50))
-
-bottom<-ggplot(df, aes(x=SM, y=OG_freq, fill=TB, alpha=SM))+
-    geom_boxplot(size=1, position=position_dodge(width = 1), 
-                 outlier.shape = NA, aes(fill=TB)) +
-    geom_jitter(width=.1,height=0, shape=16,size=3)+
-    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
-    scale_alpha_manual(values=c(0.5,1))+
-    facet_grid(~TB)+
-    theme_classic()+ theme(legend.position="none")+
-    theme(axis.text.x = element_text(angle=90, vjust=0.6)) + 
-    theme(strip.background = element_blank(),strip.text.x = element_blank())+
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=90, vjust=0.6)) +   
-    facet_grid(~TB)+
-    labs(y="", x="")+
-    scale_x_discrete(labels=c("SM-", "SM+"))+
-    coord_cartesian(ylim=c(0,5))
-
-grid.arrange(top, bottom, ncol=1, heights=c(4,6))
-
-
-
-df<-filter(phenotype, Stim=="WCL", TB!="HC")
-test<-filter(phenotype, Stim=="WCL", TB!="HC", !is.na(IFNg_freq))
+test<-mutate_TB(filter(DF, !is.na(OG_freq)))
 kable(xtabs(~TB+SM, test))
+```
 
-grid.arrange(plot_2(df, "SM", "IFNg_freq")+labs(y="IFNg+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "TNFa_freq")+labs(y="TNFa+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "IL4_freq")+labs(y="IL-4+ Proliferating CD4+ T cells (%)", x=""),
-             ncol=3
-             
-)
+```{r}
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by Proliferating CD4+ T cells",
+         y="Frequency of Cytokine+ CD4+ T cells")
+```
 
-grid.arrange(plot_2(df, "SM", "CXCR3_freq")+labs(y="CXCR3+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "CCR4_freq")+labs(y="CCR4+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "Tbet_freq")+labs(y="Tbet+ Proliferating CD4+ T cells (%)", x=""),
-             plot_2(df, "SM", "GATA3_freq")+labs(y="GATA3+ Proliferating CD4+ T cells (%)", x=""),
-             ncol=4
-             
-)
+```{r, fig.width=16, fig.height=8}
+vars<-names(test)[grep("._._._.", names(test))]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Proliferating CD4+ T cells",
+         y="Frequency of Marker+ CD4+ T cells")
+```
+
+
+##PEP
+```{r PEP}
+library(dplyr)
+library(knitr)
+DF<-subset(OG, OG$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+```{r}
+test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+kable(xtabs(~TB+SM, test))
+```
+
+```{r}
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by Mtb-Specific CD4+ T cells",
+         y="Frequency of Cytokine+ Mtb-Specific T cells")
+```
+
+```{r, fig.width=16, fig.height=8}
+vars<-names(test)[grep("._._._.", names(test))]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Mtb-Specific CD4+ T cells",
+         y="Frequency of Marker+ Mtb-Specific T cells")
+```
+
+
+```{r}
+plot_2(test, "disease", "x_G_4")
+```
+
+##WCL
+```{r WCL}
+library(dplyr)
+library(knitr)
+DF<-subset(OG, OG$Stim=="WCL")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+```{r}
+test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+kable(xtabs(~TB+SM, test))
+```
+
+
+```{r}
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by Mtb-Specific CD4+ T cells",
+         y="Frequency of Cytokine+ Mtb-Specific T cells")
+```
+
+
+```{r, fig.width=16, fig.height=8}
+vars<-names(test)[grep("._._._.", names(test))]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Mtb-Specific CD4+ T cells",
+         y="Frequency of Marker+ Mtb-Specific T cells")
+```
+
+```{r}
+plot_2(test, "disease", "IL4_freq")
+plot_2(test, "disease", "T_x_4")
+plot_2(test, "disease", "T_x_x")
+plot_2(test, "disease", "x_G_x")
+plot_2(test, "disease", "x_x_x_4")
+```
+
+
+
+##PEP
+```{r PEP th1}
+library(dplyr)
+library(knitr)
+DF<-subset(TH1, TH1$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+
+
+##PEP
+```{r PEP tnfa}
+library(dplyr)
+library(knitr)
+DF<-subset(TNF, TNF$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+
+
+
+##PEP
+```{r PEP gt}
+library(dplyr)
+library(knitr)
+DF<-subset(GT, GT$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
 ```
 
 
