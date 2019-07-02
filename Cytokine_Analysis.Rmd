@@ -48,7 +48,6 @@ data$SM<-factor(data$SM, levels=c("Naïve","Negative","Schisto+"))
 Donor<-data
 ```
 
-
 ##PMA & Ionomycin
 ```{r}
 library(knitr)
