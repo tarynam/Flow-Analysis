@@ -39,6 +39,30 @@ assign(filenames[i], data.frame(l[i]))}
 ```
 
 
+```{r create new combo variables from exported boolean phenotype}
+l<-lapply(ls(pattern="bulk_summary"), function(x) get(x))
+l<-lapply(l, function(x) sum_boolean(x))
+filenames<-ls(pattern="bulk_summary")
+for(i in 1:5){
+assign(filenames[i], data.frame(l[i]))}
+
+
+l<-lapply(ls(pattern="_OG"), function(x) get(x))
+l<-lapply(l, function(x) sum_boolean(x))
+filenames<-ls(pattern="_OG")
+for(i in 1:9){
+assign(filenames[i], data.frame(l[i]))}
+```
+
+```{r}
+l<-lapply(ls(pattern="bulk_summary"), function(x) get(x))
+l<-lapply(l, function(x) OG_background.subtract(x, "Donor", "Stim", "UN", "OG_freq"))
+filenames<-ls(pattern="bulk_summary")
+for(i in 1:5){
+assign(filenames[i], data.frame(l[i]))}
+```
+
+
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
 
