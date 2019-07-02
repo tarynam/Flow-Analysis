@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, comment=NA, warnin
 ```{r}
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 ```
 
 
@@ -61,7 +62,7 @@ for(key in keynames){#loops through all the "keys" in the list and does the foll
 for(key in keynames){
     print(key)
     #will bind together into a new dataframe the columns that contain the key in the name from
-    #1. the original entries in the mimosa data frame, 2. the untouched phenotype data and 3. the new phenotype data with NA values
+    #1. the original entries in the mimosa data frame, 2. the untouched phenotype data and 3. the new DF<-subset(CD4, CD4$Stim=="PEP")
     test<-data.frame(cbind(mimosa[grep(key, names(mimosa))], 
                            phenotype[grep(paste(key,"_",sep=""), names(phenotype))],
                            DF[grep(paste(key,"_",sep=""), names(DF))]))
@@ -147,6 +148,43 @@ for(col in colnames){
 }
 ```
 
+
+```{r, fig.width=16, fig.height=8}
+test<-mutate_TB(filter(DF, !is.na(TH1_GATA3)))
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = grep("TH1_._._._.", names(DF)))
+test2<-filter(test2, variable!="TH1_x_x_x_x")
+test2$variable<-gsub("TH1_", "", test2$variable)
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Mtb-Specific TH1 CD4+ T cells",
+         y="Frequency of Marker+ Mtb-Specific T cells")
+kable(xtabs(~TB+SM, test))
+```
+
+
+```{r, fig.width=16, fig.height=8}
+test<-mutate_TB(filter(DF, !is.na(TH2_GATA3)))
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = grep("TH2_._._._.", names(DF)))
+test2<-filter(test2, variable!="TH2_x_x_x_x")
+test2$variable<-gsub("TH2_", "",test2$variable)
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Mtb-Specific TH2 CD4+ T cells",
+         y="Frequency of Marker+ Mtb-Specific T cells")
+kable(xtabs(~TB+SM, test))
+```
+
+
 ```{r}
 test<-mutate_TB(filter(DF, !is.na(TH1_GATA3)))
 kable(xtabs(~TB+SM, test))
@@ -157,7 +195,11 @@ plot_2(test, "disease", "TH1_x_g_3_4")
 plot_2(test, "disease", "TH1_x_g_3_x")
 plot_2(test, "disease", "TH1_x_g_x_4")
 plot_2(test, "disease", "TH1_x_x_3_x")
+plot_2(test, "disease", "TH1_GATA3CXCR3")
+plot_2(test, "disease", "TH1_GATA3CCR4")
+```
 
+```{r, fig.width=12, fig.height=6}
 grid.arrange(plot_2(test, "disease", "TH1_t_x_x_x")+labs(y="Tbet+ CD4+ T cells"),
 plot_2(test, "disease", "TH1_t_x_x_4")+labs(y="CCR4+Tbet+ CD4+ T Cells (%)"),
     plot_2(test, "disease", "TH1_GATA3")+labs(y="GATA3+ CD4+ T cells (%)"),
@@ -307,13 +349,12 @@ for(col in colnames){
 ```
 
 
-
 #Comparing by Stim
 In this case, the function is written such that I have to subset to look within each of the TB-SM subsets one by one. I'm working on writing the function to be able to handle it all. I've also included one example graph to see what I'm comparing.
 
 ```{r example ggplot}
 library(ggplot2)
-data<-filter(phenotype, Stim %in% c("PMA", "PEP", "WCL"))
+data<-mutate_TB(filter(phenotype, Stim %in% c("PMA", "PEP", "WCL")))
 data$Stim<-factor(data$Stim, levels=c("PMA","PEP","WCL"))
 colnames<-names(data)[grep("TH1_", names(data))]
 for(col in colnames){
