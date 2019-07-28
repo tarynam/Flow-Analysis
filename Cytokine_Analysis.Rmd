@@ -92,6 +92,7 @@ for(col in colnames){#this will loop through each character string in the list
 ```
 
 ```{r}
+df<-mutate_TB(CD4)
 grid.arrange(
     plot_2(subset(df, df$Stim=="PMA"), "disease", "IFNg")+
         labs(y="IFNg+ CD4+ T cells (%)", title="PMA & Ionomycin"),
@@ -121,6 +122,8 @@ grid.arrange(
 ```{r}
 #CD4 Mtb Responses as measured by Compass
 DF<-dplyr::filter(Compass, TB != "N" & Stim == "WCL" & celltype == "CD4")
+my_comparisons <- list(c("LTBI SM", "LTBI X"), c("TB SM", "TB X"),
+                       c("TB SM", "LTBI SM"), c("TB X", "LTBI X"))
 
 p1<-plot_compass(DF, "FS")+
     labs(y="Functionality Score")
@@ -161,13 +164,13 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(knitr)
-colnames<-c("Cyt.Freq", "Th1.Freq", "TH1.2.Freq", "TH2.Freq")
+colnames<-c("Cyt.Freq", "TH1.Freq", "TH1.2.Freq", "TH2.Freq")
 ### PMA
 for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("\\.", "+", col)
     name<-gsub("Freq","", name)
-    y<-plot_with_all_stats(CD4, "PMA", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PMA"), col)+
         labs(title=paste("Frequency of ", name, " CD4+ T cells"), 
              subtitle="PMA & Ionomycin",
              x="",
@@ -179,7 +182,7 @@ for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("\\.", "+", col)
     name<-gsub("Freq","", name)
-    y<-plot_with_all_stats(CD4, "WCL", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="WCL"), col)+
         labs(title=paste("Frequency of ", name, " CD4+ T cells"), 
              subtitle="WCL",
              x="",
@@ -191,7 +194,7 @@ for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("\\.", "+", col)
     name<-gsub("Freq","", name)
-    y<-plot_with_all_stats(CD4, "PEP", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PEP"), col)+
         labs(title=paste("Frequency of ", name, " CD4+ T cells"), 
              subtitle="PEP",
              x="",
@@ -214,7 +217,7 @@ colnames<-c("IFNg", "TNFa", "IL4", "IL13")
 ### PMA
 for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
-    y<-plot_with_all_stats(CD4, "PMA", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PMA"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              subtitle="PMA & Ionomycin",
              x="",
@@ -226,7 +229,7 @@ for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("\\.", "+", col)
     name<-gsub("Freq","", name)
-    y<-plot_with_all_stats(CD4, "WCL", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="WCL"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              subtitle="WCL",
              x="",
@@ -239,7 +242,7 @@ for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("\\.", "+", col)
     name<-gsub("Freq","", name)
-    y<-plot_with_all_stats(CD4, "PEP", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PEP"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              subtitle="PEP",
              x="",
@@ -261,7 +264,7 @@ colnames<-c("G_T" , "IL4_IL13" )
 for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("_", "+", col)
-    y<-plot_with_all_stats(CD4, "PMA", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PMA"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              title="PMA & Ionomycin",
              x="",
@@ -272,7 +275,7 @@ for(col in colnames){#this will loop through each character string in the list
 for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("_", "+", col)
-    y<-plot_with_all_stats(CD4, "WCL", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="WCL"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              subtitle="WCL",
              x="",
@@ -284,7 +287,7 @@ for(col in colnames){#this will loop through each character string in the list
 for(col in colnames){#this will loop through each character string in the list
     #inserts each character string into the column argument of the pvals function written above
     name<-gsub("_", "+", col)
-    y<-plot_with_all_stats(CD4, "WCL", col)+
+    y<-plot_with_all_stats(subset(CD4, CD4$Stim=="PEP"), col)+
         labs(title=paste("Frequency of ", name, "+ CD4+ T cells"), 
              subtitle="PEP",
              x="",
