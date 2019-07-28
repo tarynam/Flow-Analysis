@@ -26,7 +26,25 @@ CD4_OG_TNF<-dplyr::select(read.csv("OG_CD4_OG.TNFa_summary_clean.csv"), -X, -X.1
 PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
     PBMC<-PBMC[grep("OG", PBMC$used),]
 mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
-    mimosa<-filter(mimosa, celltype=="CD4" & Exprate==0.01)
+    mimosa<-dplyr::filter(mimosa, celltype=="CD4" & Exprate==0.01)
+```
+
+#HC
+went through total cd4 un and seb --> no dif  
+went through og cd4 seb --> no dif  
+want the graph just in case  
+
+maybe this can go in a supp figure or something...  
+went through og_GT seb and there are more tbet+gata3+ccr4+ cells  
+went through og_TH1 seb and there are more tbet+gata3+ccr4+ cells  
+went through og_TNF seb and there are more tbet+gata3+ccr4+ cells  
+
+
+```{r HC}
+library(dplyr)
+library(knitr)
+DF<-mutate_hc(subset(CD4, CD4$Stim=="SEB"))
+plot_hc(DF, "SM","OG_freq")
 ```
 
 
@@ -34,8 +52,8 @@ mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
 ```{r pep total}
 library(dplyr)
 library(knitr)
-DF<-subset(CD4, CD4$Stim=="WCL")
-colnames<-names(numeric_only(DF))
+DF<-subset(CD4, CD4$Stim=="PEP")
+colnames<-numeric_only(DF)
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
