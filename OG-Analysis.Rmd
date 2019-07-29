@@ -92,6 +92,7 @@ numeric.only <- function(X,...){
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 OG<-phenotype
+write.csv(OG, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG_summary_clean_NAs.csv")
 
 #OG GT
 phenotype<-CD4_OG_GT
@@ -108,6 +109,8 @@ numeric.only <- function(X,...){
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 GT<-phenotype
+write.csv(GT, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG.GT_summary_clean_NAs.csv")
+
 
 #OG TH1
 phenotype<-CD4_OG_TH1
@@ -124,6 +127,7 @@ numeric.only <- function(X,...){
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 TH1<-phenotype
+write.csv(TH1, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG.TH1_summary_clean_NAs.csv")
 
 #OG IFNg
 phenotype<-CD4_OG_IFNg
@@ -139,8 +143,10 @@ numeric.only <- function(X,...){
 }
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
-TNF<-phenotype
+IFNg<-phenotype
+write.csv(IFNg, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG.IFNg_summary_clean_NAs.csv")
 
+#OG TNFa
 phenotype<-CD4_OG_TNF
 phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
 phenotype<-arrange(phenotype, id)
@@ -154,7 +160,8 @@ numeric.only <- function(X,...){
 }
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
-IFNg<-phenotype
+TNF<-phenotype
+write.csv(TNF, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG.TNFa_summary_clean_NAs.csv")
 ```
 
 #SEB
@@ -362,7 +369,7 @@ plot_2(test, "disease", "x_x_x_4")
 
 
 
-##PEP
+##PEP TH1
 ```{r PEP th1}
 library(dplyr)
 library(knitr)
@@ -390,7 +397,7 @@ for(col in colnames){
 
 
 
-##PEP
+##PEP TNF
 ```{r PEP tnfa}
 library(dplyr)
 library(knitr)
@@ -419,7 +426,7 @@ for(col in colnames){
 
 
 
-##PEP
+##PEP GT
 ```{r PEP gt}
 library(dplyr)
 library(knitr)
@@ -446,7 +453,7 @@ for(col in colnames){
 ```
 
 
-##PEP
+##PEP IFNg
 ```{r PEP IFNg}
 library(dplyr)
 library(knitr)
