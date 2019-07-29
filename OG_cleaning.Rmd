@@ -75,6 +75,7 @@ write.csv(OG_CD4_OG.GT_summary.csv, "OG_CD4_OG.GT_summary_clean.csv")
 write.csv(OG_CD4_OG.IL4_summary.csv, "OG_CD4_OG.IL4_summary_clean.csv")
 write.csv(OG_CD4_OG.TH1_summary.csv, "OG_CD4_OG.TH1_summary_clean.csv")
 write.csv(OG_CD4_OG.TNFa_summary.csv, "OG_CD4_OG.TNFa_summary_clean.csv")
+write.csv(OG_CD4_OG.IFNg_summary.csv, "OG_CD4_OG.IFNg_summary_clean.csv")
 
 
 write.csv(OG_CD8_bulk_summary.csv, "OG_CD8_bulk_summary_clean.csv")

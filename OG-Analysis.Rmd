@@ -23,6 +23,7 @@ CD4_OG<-dplyr::select(read.csv("OG_CD4_OG_summary_clean.csv"), -X, -X.1)
 CD4_OG_TH1<-dplyr::select(read.csv("OG_CD4_OG.TH1_summary_clean.csv"), -X, -X.1)
 CD4_OG_GT<-dplyr::select(read.csv("OG_CD4_OG.TH1_summary_clean.csv"), -X, -X.1)
 CD4_OG_TNF<-dplyr::select(read.csv("OG_CD4_OG.TNFa_summary_clean.csv"), -X, -X.1)
+CD4_OG_IFNg<-dplyr::select(read.csv("OG_CD4_OG.IFNg_summary_clean.csv"), -X, -X.1)
 PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
     PBMC<-PBMC[grep("OG", PBMC$used),]
 mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
@@ -124,8 +125,8 @@ numeric.only <- function(X,...){
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 TH1<-phenotype
 
-#OG TNF
-phenotype<-CD4_OG_TNF
+#OG IFNg
+phenotype<-CD4_OG_IFNg
 phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
 phenotype<-arrange(phenotype, id)
 
@@ -139,6 +140,21 @@ numeric.only <- function(X,...){
 
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 TNF<-phenotype
+
+phenotype<-CD4_OG_TNF
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+IFNg<-phenotype
 ```
 
 #SEB
@@ -345,6 +361,7 @@ plot_2(test, "disease", "x_x_x_4")
 
 
 
+
 ##PEP
 ```{r PEP th1}
 library(dplyr)
@@ -427,6 +444,35 @@ for(col in colnames){
         print(y)}
 }
 ```
+
+
+##PEP
+```{r PEP IFNg}
+library(dplyr)
+library(knitr)
+DF<-subset(IFNg, IFNg$Stim=="PEP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:31], test[38:49])
+for(col in colnames){
+    y<-pvals_4_loose(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+
 
 
 
