@@ -1,0 +1,270 @@
+---
+title: "OG-Analysis"
+author: "Taryn McLaughlin"
+date: "5/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+```{r}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
+```
+
+```{r read in data files}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+gd<-dplyr::select(read.csv("OG_gd_bulk_summary_clean.csv"), -X, -X.1)
+gd_OG<-dplyr::select(read.csv("OG_gd_OG_summary_clean.csv"), -X, -X.1)
+GD<-dplyr::select(read.csv("OG_GDonly_bulk_summary_clean.csv"), -X, -X.1)
+GD_OG<-dplyr::select(read.csv("OG_GDonly_OG_summary_clean.csv"), -X, -X.1)
+CD3<-dplyr::select(read.csv("OG_CD3_bulk_summary_clean.csv"), -X, -X.1)
+PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
+    PBMC<-PBMC[grep("OG", PBMC$used),]
+mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
+    mimosa<-dplyr::filter(mimosa, celltype=="GD" & Exprate==0.01)
+```
+
+##Frequency of Gamma Deltas to start with
+```{r}
+pvals_gd(subset(CD3, CD3$Stim=="UN"), "GD_freq")
+plot_with_all_stats(subset(CD3, CD3$Stim=="UN"), "GD_freq")
+plot_3(subset(CD3, CD3$Stim=="UN"), "GD_freq")
+pvals_gd(subset(CD3, CD3$Stim=="SWAP"), "GD_freq")
+```
+
+##Proliferation of Gamma Deltas
+###Including cd4/cd8
+```{r gd}
+DF<-subset(gd, gd$Stim=="SWAP")
+plot_with_all_stats(DF, "OG_freq")
+plot_3(DF,  "OG_freq")
+ggplot(DF, aes(x=SM, y=OG_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
+colnames<-numeric_only(DF)
+for(col in colnames){
+    y<-pvals_collapse(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+###Excluding CD4/CD8
+```{r GD}
+DF<-subset(GD, GD$Stim=="SWAP")
+plot_with_all_stats(DF, "OG_freq")
+plot_3(DF,  "OG_freq")
+ggplot(DF, aes(x=SM, y=OG_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
+colnames<-numeric_only(DF)
+for(col in colnames){
+    y<-pvals_collapse(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+##Are starting Frequencies related to expansion
+```{r}
+start<-select(CD3, Sample, Stim, Donor, GD_freq)
+middle1<-filter(start, Stim=="UN")
+middle2<-filter(start, Stim=="SWAP")
+end<-select(gd, Sample, Stim, TB, SM, Donor, OG_freq)%>%filter(Stim=="SWAP")
+
+test<-merge(middle1, middle2, by=c("Donor"))
+test2<-merge(test, end, by="Donor")
+melt<-melt(test2, id.vars=c("Donor", "TB", "SM"), measure.vars=c("GD_freq.x", "GD_freq.y"))
+ggplot(melt, aes(x=variable, y=value, color=TB))+geom_point()+geom_line(aes(group=Donor))+facet_grid(~TB)+scale_x_discrete(labels=c("Starting freq", "Swap Freq", "Proliferating Freq"))
+
+test2$ratio<-test2$GD_freq.y/test2$GD_freq.x
+plot_with_all_stats(test2, "ratio")+labs(title="Expansion of gd")
+plot_3(test2, "ratio")+labs(title="Expansion of gd")
+
+test2$dif<-test2$GD_freq.y-test2$GD_freq.x
+plot_with_all_stats(test2, "dif")+labs(title="Expansion of gd")
+plot_3(test2, "dif")+labs(title="Expansion of gd")
+```
+
+
+#Phenotyping
+##Removing Low Responders
+```{r}
+antigen.ref<-mimosa
+antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
+antigen.ref<-arrange(antigen.ref, id)
+
+#Total gd
+phenotype<-gd_OG
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+OG_gd<-phenotype
+write.csv(OG_gd, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_gd_OG_summary_clean_NAs.csv")
+
+
+antigen.ref<-mimosa
+antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
+antigen.ref<-arrange(antigen.ref, id)
+
+#gd only
+phenotype<-gd_OG
+phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
+phenotype<-arrange(phenotype, id)
+
+remove<-subset(antigen.ref, antigen.ref[,"Pr.response"]<.7 & antigen.ref[,"fdr"]>0.03)$id
+print(length(remove)) #see how many sample ids will be excluded
+numeric.only <- function(X,...){
+      returnCols <- names(X)
+      a<-sapply(X, is.numeric)
+      print(returnCols[a == "TRUE"])
+}
+
+phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
+OG_GD<-phenotype
+write.csv(OG_GD, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_GDonly_OG_summary_clean_NAs.csv")
+```
+
+##gd
+```{r gd og SWAP}
+library(dplyr)
+library(knitr)
+DF<-subset(OG_gd, OG_gd$Stim=="SWAP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:39], test[45:56])
+for(col in colnames){
+    y<-pvals_collapse(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+```{r}
+test<-filter(DF, !is.na(OG_freq))
+kable(xtabs(~TB+SM, test))
+```
+
+```{r}
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot()+
+
+    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by Proliferating CD4+ T cells",
+         y="Frequency of Cytokine+ CD4+ T cells")
+
+
+plot_with_all_stats(DF, "IL4_freq")
+ggplot(DF, aes(x=SM, y=IL4_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
+```
+
+```{r, fig.width=16, fig.height=8}
+vars<-names(test)[grep("._._._.", names(test))]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot()+
+
+    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Proliferating GD T cells",
+         y="Frequency of Marker+ GD T cells")
+
+```
+
+
+##GD
+```{r GD og swap}
+library(dplyr)
+library(knitr)
+DF<-subset(OG_GD, OG_GD$Stim=="SWAP")
+#split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
+x<-split(DF, list(DF$TB, DF$SM))
+#for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
+y<-lapply(x, function(g) names(g[, colSums(!is.na(g)) > 0]))
+#each entry in the list has to be extracted and named
+a<-unlist(y[1])
+b<-unlist(y[2])
+c<-unlist(y[3])
+d<-unlist(y[4])
+#then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
+test<-Reduce(intersect, list(a,b,c,d))
+#this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
+colnames<-c(test[1:39], test[45:56])
+for(col in colnames){
+    y<-pvals_collapse(DF, col)
+    if(dim(y)[1]>0){
+        print(col)
+        print(y)}
+}
+```
+
+```{r}
+test<-filter(DF, !is.na(OG_freq))
+kable(xtabs(~TB+SM, test))
+```
+
+```{r}
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot()+
+
+    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by SWAP-specific CD4+ T cells",
+         y="Frequency of Cytokine+ SWAP-specific T cells")
+```
+
+```{r, fig.width=16, fig.height=8}
+vars<-names(test)[grep("._._._.", names(test))]
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+test2<-filter(test2, variable!="x_x_x_x")
+ggplot(test2, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot()+
+    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on SWAP-specific CD4+ T cells",
+         y="Frequency of Marker+ SWAP-specific T cells")
+```
