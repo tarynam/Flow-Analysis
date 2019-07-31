@@ -8,11 +8,12 @@ output: html_document
 ```{r setup, include=FALSE, cache=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 library(data.table)
-master<-fread("/Users/tarynam/Desktop/ICS-CD4/clean-data/Master-ICS.csv")
+master<-fread("/Applications/Old Computer/Day Lab/Flow-Data/Master-ICS.csv")
 ```
 
 ```{r, cache=TRUE}
 library(dplyr)
+master$Sample<-paste(master$donor, master$Stim, sep ="_")
 master<-dplyr::select(master, -V1, -X, -donor, -FSC.A, -FSC.H, -FSC.W, -SSC.A, -SSC.W, -SSC.H, -Stim)
 ```
 
