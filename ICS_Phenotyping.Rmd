@@ -122,6 +122,26 @@ for(col in colnames){
 }
 ```
 
+
+```{r}
+test<-mutate_TB(filter(DF, !is.na(TH1_GATA3)))
+test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = grep("TH1_._._._.", names(DF)))
+test2<-filter(test2, variable!="TH1_x_x_x_x")
+test2$variable<-gsub("TH1_", "", test2$variable)
+ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
+    geom_boxplot()+
+    scale_alpha_manual(values=c(0.5,1))+
+    scale_fill_manual(values =c("#2166ac", "#b2182b"))+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Lineage Marker Expression on Mtb-Specific TH1 CD4+ T cells",
+         y="Frequency of Marker+ Mtb-Specific T cells")+
+    coord_cartesian(ylim=c(0,10))
+kable(xtabs(~TB+SM, test))
+```
+
+
 ##PEP
 ```{r PEP}
 library(dplyr)
