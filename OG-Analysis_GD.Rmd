@@ -6,10 +6,11 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA, warning=FALSE)
 library(dplyr)
 library(knitr)
 library(ggplot2)
+library(ggpmisc)
 ```
 
 ```{r}
@@ -26,6 +27,7 @@ gd_OG<-dplyr::select(read.csv("OG_gd_OG_summary_clean.csv"), -X, -X.1)
 GD<-dplyr::select(read.csv("OG_GDonly_bulk_summary_clean.csv"), -X, -X.1)
 GD_OG<-dplyr::select(read.csv("OG_GDonly_OG_summary_clean.csv"), -X, -X.1)
 CD3<-dplyr::select(read.csv("OG_CD3_bulk_summary_clean.csv"), -X, -X.1)
+CD3_OG<-dplyr::select(read.csv("OG_CD3_OG_summary_clean.csv"), -X, -X.1)
 PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
     PBMC<-PBMC[grep("OG", PBMC$used),]
 mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
@@ -92,7 +94,6 @@ plot_with_all_stats(test2, "dif")+labs(title="Expansion of gd")
 plot_3(test2, "dif")+labs(title="Expansion of gd")
 ```
 
-
 #Phenotyping
 ##Removing Low Responders
 ```{r}
@@ -117,13 +118,22 @@ phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 OG_gd<-phenotype
 write.csv(OG_gd, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_gd_OG_summary_clean_NAs.csv")
 
+phenotype$include<-1
+for(i in 1:length(phenotype$include)){
+    if(is.na(phenotype$OG_freq[i])){
+        phenotype$include[i]<-0
+    }
+}
+kable(xtabs(~include+SM+TB, phenotype[phenotype$Stim=="SWAP",]))
+x<-split(phenotype[phenotype$Stim=="SWAP",], list(phenotype$SM, phenotype$TB))
+lapply(x, function(g) table(g$include))
 
+#gd only
 antigen.ref<-mimosa
 antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
 antigen.ref<-arrange(antigen.ref, id)
 
-#gd only
-phenotype<-gd_OG
+phenotype<-GD_OG
 phenotype$id<-paste(phenotype$Donor, phenotype$Stim, sep="_")
 phenotype<-arrange(phenotype, id)
 
@@ -138,6 +148,17 @@ numeric.only <- function(X,...){
 phenotype[(phenotype$id %in% remove), numeric.only(phenotype)]<-NA
 OG_GD<-phenotype
 write.csv(OG_GD, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_GDonly_OG_summary_clean_NAs.csv")
+
+
+phenotype$include<-1
+for(i in 1:length(phenotype$include)){
+    if(is.na(phenotype$OG_freq[i])){
+        phenotype$include[i]<-0
+    }
+}
+kable(xtabs(~include+SM+TB, phenotype[phenotype$Stim=="SWAP",]))
+x<-split(phenotype[phenotype$Stim=="SWAP",], list(phenotype$SM, phenotype$TB))
+kable(sapply(x, function(g) table(g$include)))
 ```
 
 ##gd
@@ -175,20 +196,35 @@ kable(xtabs(~TB+SM, test))
 vars<-names(test)[grep("._._.", names(test))]
 vars<-vars[-grep("._._._.", vars)]
 test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
-test2<-filter(test2, variable!="x_x_x")
 ggplot(test2, aes(x=variable, y=value, fill=TB))+
     geom_boxplot()+
 
-    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
     stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
-    theme(legend.position="none")+
+
     theme(plot.title = element_text(hjust = 0.5)) +
     labs(title="Cytokine Production by Proliferating CD4+ T cells",
          y="Frequency of Cytokine+ CD4+ T cells")
 
+ggplot(test2, aes(x=variable, y=value, fill=SM))+
+    geom_boxplot()+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Cytokine Production by Proliferating CD4+ T cells",
+         y="Frequency of Cytokine+ CD4+ T cells")
 
 plot_with_all_stats(DF, "IL4_freq")
+
+plot_3(DF, "IL4_freq")
+plot_3(DF, "TNFa_freq")
+plot_3(DF, "IFNg_freq")
+
 ggplot(DF, aes(x=SM, y=IL4_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
+
+ggplot(DF, aes(x=SM, y=TNFa_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
+
+ggplot(DF, aes(x=SM, y=IFNg_freq, fill=SM))+geom_boxplot(outlier.shape = NA)+geom_jitter(width=.1)+stat_compare_means()
 ```
 
 ```{r, fig.width=16, fig.height=8}
@@ -198,12 +234,47 @@ test2<-filter(test2, variable!="x_x_x_x")
 ggplot(test2, aes(x=variable, y=value, fill=TB))+
     geom_boxplot()+
 
-    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
     stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
-    theme(legend.position="none")+
+
     theme(plot.title = element_text(hjust = 0.5)) +
     labs(title="Lineage Marker Expression on Proliferating GD T cells",
          y="Frequency of Marker+ GD T cells")
+
+```
+
+
+```{r}
+plot_3(PBMC[PBMC$SM=="SM",], "SchistosomaIntensity")
+
+formula<-y~x
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), CD3[CD3$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=OG_freq, y=SchistosomaIntensity, color=TB))+geom_point()+stat_smooth(method="lm")+labs(title="CD3")+scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))
+
+
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), CD3_OG[CD3_OG$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=GD_freq, y=SchistosomaIntensity, color=TB))+geom_point()+stat_smooth(method="lm")+labs(title="CD3")+scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))
+
+
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), GD[GD$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=OG_freq, y=SchistosomaIntensity, color=TB))+geom_point()+stat_smooth(method="lm")+labs(title="GD")+scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))
+
+
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), GD_OG[GD_OG$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=IL4_freq, y=SchistosomaIntensity, color=TB))+
+    geom_point()+
+    scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
+    stat_smooth(method="lm", formula = formula)+
+    stat_poly_eq(aes(label = paste(..rr.label..)), 
+               label.x.npc = "right", label.y.npc = 0.15,
+               formula = formula, parse = TRUE, size = 3)
+                       
+
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), GD_OG[GD_OG$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=TNFa_freq, y=SchistosomaIntensity, color=TB))+geom_point()+stat_smooth(method="lm")+labs(title="GD")+scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))
+
+DF<-merge(select(PBMC, Donor, SchistosomaIntensity), GD_OG[GD_OG$Stim=="SWAP",], by="Donor")
+ggplot(DF[DF$SM=="SM",], aes(x=IFNg_freq, y=SchistosomaIntensity, color=TB))+geom_point()+stat_smooth(method="lm")+labs(title="GD")+scale_color_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))
 
 ```
 
@@ -225,7 +296,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:39], test[45:56])
+colnames<-c(test[1:32], test[38:49])
 for(col in colnames){
     y<-pvals_collapse(DF, col)
     if(dim(y)[1]>0){
@@ -243,13 +314,12 @@ kable(xtabs(~TB+SM, test))
 vars<-names(test)[grep("._._.", names(test))]
 vars<-vars[-grep("._._._.", vars)]
 test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
-test2<-filter(test2, variable!="x_x_x")
 ggplot(test2, aes(x=variable, y=value, fill=TB))+
     geom_boxplot()+
 
-    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
     stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
-    theme(legend.position="none")+
+
     theme(plot.title = element_text(hjust = 0.5)) +
     labs(title="Cytokine Production by SWAP-specific CD4+ T cells",
          y="Frequency of Cytokine+ SWAP-specific T cells")
@@ -261,9 +331,9 @@ test2<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
 test2<-filter(test2, variable!="x_x_x_x")
 ggplot(test2, aes(x=variable, y=value, fill=TB))+
     geom_boxplot()+
-    scale_fill_manual(values =c("#1a9850", "#2166ac", "#b2182b"))+
+scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
     stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
-    theme(legend.position="none")+
+
     theme(plot.title = element_text(hjust = 0.5)) +
     labs(title="Lineage Marker Expression on SWAP-specific CD4+ T cells",
          y="Frequency of Marker+ SWAP-specific T cells")
