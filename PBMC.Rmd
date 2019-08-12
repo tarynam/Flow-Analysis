@@ -156,8 +156,8 @@ grid.arrange(
 
 
 grid.arrange(
-    plot_pbmc(pbmc, "PreOG_Viability")+labs(y="Viability"),
-    plot_pbmc(pbmc, "PreOG_Cells.Vial")+labs(y="Cells/Vial"),
+    plot_pbmc(pbmc, "PostOG_Viability")+labs(y="Viability"),
+    plot_pbmc(pbmc, "PostOG_Cells.Vial")+labs(y="Cells/Vial"),
     top=text_grob("Post OG Staining", size=20), ncol=2
 )
 ```
