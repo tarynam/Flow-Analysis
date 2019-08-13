@@ -15,7 +15,6 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 ```
 
-
 #Removing Non-Specific Responses
 ```{r original export}
 #mimosa is the program used to determine whether a response is "real" or not
@@ -25,7 +24,7 @@ mimosa<-dplyr::rename(mimosa, id = Sample)
 #select the columns that will be our sample indicator "id", as well as our "key" columns
 #indicated by the "include" suffix. IF a sample has a 0 in the include column it's related data will be
 #removed from the analysis
-antigen.ref<-dplyr::select(mimosa, id, Cyt_include, TH1_include, TH2_include, TH1.2_include)
+antigen.ref<-dplyr::select(mimosa, id, Cyt_include, TH1_include, TH2_include, TH1.2_include, ifng_include, tnfa_include)
 
 #read in the data set containing the actual phenotype measurements
 phenotype<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/Clean/ICS_CD4_phenotype_clean.csv")
@@ -42,7 +41,7 @@ library(dplyr)
 mimosa<-arrange(mimosa, id)
 phenotype<-arrange(phenotype, id)
 DF<-phenotype #so we don't alter the original phenotype dataframe just in case
-keynames<-c("Cyt", "TH1", "TH1.2", "TH2") #list of character strings that contain our "key" values
+keynames<-c("Cyt", "TH1", "TH1.2", "TH2", "ifng", "tnfa") #list of character strings that contain our "key" values
 #in the antigen ref we have columns named "key"_include and in the phenotype data we have columns named
 #"key"_"parameter"
 
