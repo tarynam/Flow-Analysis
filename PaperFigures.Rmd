@@ -20,7 +20,7 @@ library(corrplot)
 library(sjPlot)
 ```
 
-```{r}
+```{r plot functions}
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
@@ -64,7 +64,7 @@ allplot<-function(data, xval, yval, colors){
     theme(plot.subtitle = element_text(hjust = 0.5)) +
     stat_compare_means(
         comparisons = list(c("HC SM+", "HC SM-"),c("LTBI SM+", "LTBI SM-"), c("TB SM+", "TB SM-")),
-        label="p.signif", hide.ns = TRUE, size=8,
+        label="p.signif", size=8,
         label.y = boxplot.stats(data[,yval])$stats[5]*1.4)+
         coord_cartesian(ylim=c(0, boxplot.stats(data[,yval])$stats[5]*1.5))+
         labs(x="", y="")
@@ -80,7 +80,7 @@ all.cols<- c("HC SM+" = "#1a9850", "HC SM-" ="#91cf60",
              "TB SM+" = "#b2182b", "TB SM-"="#E59EA6")
 ```
 
-```{r}
+```{r load data}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 CD4<-read.csv("ICS_CD4_clean.csv")
 CYT<-read.csv("ICS_CD4_Cytokine_clean.csv")
@@ -93,14 +93,14 @@ luminex<-read.csv("/Applications/Old Computer/Day Lab/Luminex/Clean Data/Luminex
 ```
 
 #All groups
-```{r, fig.height=6, fig.width=3}
+Dont worry I can change this so the ns bars don't show up, especially for the cytokines since I have no idea why that giant NS is there. But for now I'm leaving them so we know.
+```{r}
 cd4<-plot_filter(subset(CD4, CD4$Stim=="UN"))
 cyt<-plot_filter(subset(CYT, CYT$Stim=="PMA"))
 phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
 og<-plot_filter(subset(OG, OG$Stim=="SEB"))
 ogphen<-plot_filter(subset(OGPHEN, OGPHEN$Stim=="SEB"))
 ```
-
 
 ```{r, fig.width=16, fig.height=8}
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3", "CXCR3", "CCR4"))
@@ -144,32 +144,21 @@ cowplot::plot_grid(a, b, c, d,ncol=4)
 
 
 #Healthy Adults
-####The frequency of T-bet+ CD4+ T cells is lower amongst SM+ Healthy Adults  
-```{r, fig.height=6, fig.width=3}
-cd4<-filter_hc(subset(CD4, CD4$Stim=="UN"))
-cyt<-filter_hc(subset(CYT, CYT$Stim=="PMA"))
-phen<-filter_hc(subset(PHEN, PHEN$Stim=="PMA"))
-og<-filter_hc(subset(OG, OG$Stim=="SEB"))
-ogphen<-filter_hc(subset(OGPHEN, OGPHEN$Stim=="SEB"))
-```
-
-
+*Is this superfluous now?*  
 ####Generic cytokine production from CD4+ T cells stimulated with PMA & Ionomycin does not differ between SM- and SM+ Healthy Adults
-```{r, fig.height=6, fig.width=10}
+```{r, fig.width=18, fig.height=9.5}
 melt<-melt(cyt, id.vars=c("TB","SM"), measure.vars=c("TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
 cyt_groups <- as_labeller(c("TH1.Freq" = "TH1", 
                     "TH1.2.Freq" = "TH1/2", "TH2.Freq" = "TH2"))
 baseplot(melt, "SM", "value", healthy.cols)+
     facet_wrap(~variable, ncol=4, labeller=cyt_groups)+
-    labs(y="Frequency of Cytokine+ CD4+ T cells (%)")
+    labs(y="Frequency of Cytokine+ CD4+ T cells (%)")+coord_cartesian(ylim=c(0,40))
 ```
 
 ####Generic TH1 and TH2 cytokine producing cells are stratified by lineage-specific transcription factors, and CCR4
 Amongst TH1 cytokine producing CD4+ T cells, moderate frequencies express the transcription factor T-bet while very low frequencies express GATA3. In contrast, amongst TH2 cytokine producing CD4+ T cells, low frequencies express T-bet while high frequencies express GATA3. Similarly high frequencies of TH2 cytokine producing cells express CCR4 compared to TH1 cytokine producing cells. Both TH1 and TH2 cells have equivalent moderate frequencies of CXCR3 expressing cells. There are no differences by S. mansoni status.  
 
-*Which of these orientations makes the point better?*
-
-```{r, fig.height=10, fig.width=5}
+```{r, fig.width=5, fig.height=10}
 test<-melt(phen, id.vars=c("TB", "SM"), 
            measure.vars=c("TH1_T-bet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4",
            "TH2_T-bet", "TH2_GATA3", "TH2_CXCR3", "TH2_CCR4"))
@@ -186,132 +175,60 @@ booleanplot(test, "SM","value", healthy.cols)+
     labs(y="Frequency of Marker+ CD4+ T cells (%)")
 ```
 
-
 #LTBI
 
-####LTBI individuals coinfected with S. mansoni have higher Mtb peptide-specific total cytokine production, specifically due to higher co-production of IFNγ and TNFa
-```{r, fig.height=6, fig.width=10}
+####LTBI individuals coinfected with S. mansoni have higher Mtb peptide-specific cytokine production, specifically due to higher production of IFNγ
+```{r, narrow down ltbi data}
 cyt<-filter_ltbi(subset(CYT, CYT$Stim=="PEP"))
 phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
 og<-filter_ltbi(subset(OG, OG$Stim=="PEP"))
 ogphen<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
 oggt<-filter_ltbi(subset(OG.GT, OG.GT$Stim=="PEP"))
-
-#generate cytokine table for graphing
-melt<-melt(cyt, 
-    id.vars=c("TB","SM"), 
-    measure.vars=c("Cyt.Freq", "TH1.Freq", "TH1.2.Freq", "TH2.Freq", "G_x_x_T"))
-cyt_groups <- as_labeller(c("Cyt.Freq" = "Total", "TH1.Freq" = "TH1", 
-                    "TH1.2.Freq" = "TH1/2", "TH2.Freq" = "TH2", "G_x_x_T"="IFNγ\n&\nTNFa"))
-#graph with facets
-a<-baseplot(melt[melt$variable!="G_x_x_T",], "SM", "value", ltbi.cols)+
-    facet_wrap(~variable, ncol=4, labeller=cyt_groups)+
-    labs(y="Frequency of Cytokine+ CD4+ T cells (%)")
-b<-baseplot(melt[melt$variable=="G_x_x_T",], "SM", "value", ltbi.cols)+
-    facet_wrap(~variable, ncol=4, labeller=cyt_groups)+
-    labs(y="")
 ```
 
-```{r, fig.width=16, fig.height=8}
-melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3", "CXCR3", "CCR4"))
-
-a<-baseplot(melt[melt$variable=="T-bet",], "disease", "value", ltbi.cols)+    
-    facet_wrap(~variable)+
-    labs(y="(%) Total CD4+ T cells")
-
-b<-baseplot(melt[melt$variable=="GATA3",], "disease", "value", ltbi.cols)+    
-    facet_wrap(~variable)
-
-c<-baseplot(melt[melt$variable=="CXCR3",], "disease", "value", ltbi.cols)+    
-    facet_wrap(~variable)
-
-d<-baseplot(melt[melt$variable=="CCR4",], "disease", "value", ltbi.cols)+    
-    facet_wrap(~variable)
-
-cowplot::plot_grid(a, b, c, d,ncol=4)
-```
-
-```{r, fig.width=16, fig.height=8}
+```{r cytokine, fig.width=16, fig.height=8}
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
 cyt_groups <- as_labeller(c("IFNg" = "IFNγ", 
                     "TNFa" = "TNFα", "IL4" = "IL-4", "IL13" = "IL-13"))
 
-a<-baseplot(melt[melt$variable=="IFNg",], "disease", "value", ltbi.cols)+    
+a<-baseplot(melt[melt$variable=="IFNg",], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
     labs(y="Frequency of Cytokine+ CD4+ T cells (%)")
 
-b<-baseplot(melt[melt$variable=="TNFa",], "disease", "value", ltbi.cols)+    
+b<-baseplot(melt[melt$variable=="TNFa",], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)
 
-c<-baseplot(melt[melt$variable=="IL4",], "disease", "value", ltbi.cols)+    
+c<-baseplot(melt[melt$variable=="IL4",], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)
 
-d<-baseplot(melt[melt$variable=="IL13",], "disease", "value", ltbi.cols)+    
+d<-baseplot(melt[melt$variable=="IL13",], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)
 
 cowplot::plot_grid(a, b, c, d,ncol=4)
 ```
 
-```{r, fig.height=6, fig.width=10}
-#generate cytokine table for graphing
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
-cyt_groups <- as_labeller(c("IFNg" = "IFNγ", 
-                    "TNFa" = "TNFα", "IL4" = "IL-4", "IL13" = "IL-13"))
-#graph with facets
-baseplot(melt, "SM", "value", ltbi.cols)+
-    facet_wrap(~variable, ncol=4, labeller=cyt_groups)+
-    labs(y="Frequency of Cytokine+ CD4+ T cells (%)")
-```
-
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status
-*which of these formats do you like? It may be better to look at the active TB data first*
-```{r, fig.height=6, fig.width=10}
-#graph phenotype
-melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
-test<-filter(melt, variable!="TH1_x_x_x_x")
-test$variable<-gsub("TH1_", "", test$variable)
-test$variable<-factor(test$variable, levels=c(
-"t_x_3_4" ,       
-"t_x_3_x" ,         
-"t_x_x_4" ,         
-"t_x_x_x" ,
-"t_g_3_4" ,         
-"t_g_3_x" ,         
-"t_g_x_4" ,         
-"t_g_x_x" ,
-"x_g_3_4" ,         
-"x_g_3_x" ,         
-"x_g_x_4" ,         
-"x_g_x_x" ,
-"x_x_3_4" ,          
-"x_x_3_x" ,         
-"x_x_x_4"           
-))
+```{r ics main four markers, fig.width=16, fig.height=8}
+melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("ifng_T-bet", "ifng_GATA3", "ifng_CXCR3", "ifng_CCR4"))
+melt$variable<-gsub("ifng_", "", melt$variable)
 
-T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
-G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
-c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
-c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+a<-baseplot(melt[melt$variable=="T-bet",], "SM", "value", ltbi.cols)+    
+    facet_wrap(~variable)+
+    labs(y="(%) Total CD4+ T cells")
 
-labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
-breaks <- levels(test$variable)
+b<-baseplot(melt[melt$variable=="GATA3",], "SM", "value", ltbi.cols)+    
+    facet_wrap(~variable)
+c<-baseplot(melt[melt$variable=="CXCR3",], "SM", "value", ltbi.cols)+    
+    facet_wrap(~variable)
 
-test$tf<-NA
-test$tf[grep("x_g", test$variable)]<-"GATA3"
-test$tf[grep("t_x", test$variable)]<-"T-bet"
-test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
-test$tf[grep("x_x_._.", test$variable)]<-"None"
-test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+d<-baseplot(melt[melt$variable=="CCR4",], "SM", "value", ltbi.cols)+    
+    facet_wrap(~variable)
 
-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free", ncol=4)+
-    scale_x_discrete(labels = labels, breaks=breaks)+
-    stat_compare_means(label="p.signif", hide.ns = TRUE, size=6)+
-    labs(y="Frequency of Transcription Factor \n Mtb-Specific TH1 cells (%)")
-
+cowplot::plot_grid(a, b, c, d,ncol=4)
 ```
 
-####There are no differences in Mtb-specific proliferation betweeen SM+ and SM- QF+ individuals. The cytokine production from expanded Mtb-specific CD4+ T cells only differs with regards to IFNγ IL-4 co-production, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still cells that co-produce IFNγ and TNFa. 
-```{r, fig.width=10, fig.height=6}
+####There are no differences in Mtb-specific proliferation betweeen SM+ and SM- QF+ individuals. The cytokine production from expanded Mtb-specific CD4+ T cells only differs with regards to IFNγ IL-4 co-production, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still cells that co-produce IFNγ and TNFα. 
+```{r og and cyt, fig.width=16, fig.height=8}
 a<-baseplot(og, "SM", "OG_freq", ltbi.cols)+
     labs(y="Proliferating CD4+ T cells (%)")+coord_cartesian(ylim=c(0,5))
 melt<-melt(ogphen, id.vars=c("TB", "SM"), measure.vars = grep("._._.", names(ogphen)))
@@ -342,7 +259,7 @@ cowplot::plot_grid(a, b, ncol=2, rel_widths=c(1.5,3.5), align="h")
 ```
 
 ####Furthermore, IFNγ and TNFa are also the two dominant cytokines produced when analyzed by luminex. The concentration of all cytokines measured by luminex are equivalent between SM- and SM+ groups.
-```{r, fig.height=10, fig.width=8}
+```{r luminex, fig.width=12, fig.height=16}
 lum<-filter_ltbi(subset(luminex, luminex$Stim=="PEP"))
 names(lum)<-gsub("IL", "IL-", names(lum))
 names(lum)<-gsub("IFNg", "IFNγ", names(lum))
@@ -350,12 +267,12 @@ names(lum)<-gsub("TNFa", "TNFα", names(lum))
 
 melt<-melt(lum, id.vars=c("TB", "SM"), measure.vars=grep("pg", names(lum)))
 melt$variable<-gsub("_pg.ml", "", melt$variable)
-melt$variable<- factor(melt$variable, levels=c("TNFα", "IFNγ", "IL-21", "IL-4", "IL-5", "IL-13", "IL-17A", "IL-22", "IL-10"))
+melt$variable<- factor(melt$variable, levels=c("TNFα", "IFNγ", "IL-21", "IL-17A", "IL-22", "IL-10", "IL-4", "IL-5", "IL-13"))
 booleanplot(melt, "SM", "value", ltbi.cols)+facet_wrap(~variable, scales="free")+labs(y="pg/mL")
 ```
 
 ####However the correlation between cytokines differs between groups. Of note, the correlation between IFNγ and TNFa is stronger amongst SM+ individuals than SM- individuals.
-```{r}
+```{r cor plots}
 df<-lum[,3:11]
 names(lum)<-gsub("_pg.ml", "", names(lum))
 pca1 <- prcomp(df, scale = TRUE)
@@ -384,30 +301,32 @@ pvals <- res1$p[order, order]
 corrplot(order.pos, method = "circle", insig = "label_sig", tl.col = "black", 
          p.mat = pvals, sig.level = c(.001, .01, .05), pch.cex = 2, pch.col = "white",
          type="upper")
-
-lum_x<-lum[lum$SM=="SM-",]
-df_x<-as.matrix(lum_x[,3:11])
-row.names(df_x)<-lum_x$Sample
-hc_x <- hclust(as.dist(1-cor(df_x)))
-x<-plot(hc_x)
-
-lum_sm<-lum[lum$SM=="SM+",]
-df_sm<-as.matrix(lum_sm[,3:11])
-row.names(df_sm)<-lum_sm$Sample
-hc_sm <- hclust(as.dist(1-cor(df_sm)))
-sm<-plot(hc_sm)
-
-
-df<-as.matrix(lum[,3:11])
-#heatmap(t(df_x), Rowv=as.dendrogram(hc_x))
-#heatmap(t(df_sm), Rowv=as.dendrogram(hc_sm))
-#heatmap(t(df), Rowv=as.dendrogram(hc_sm))
 ```
 
 ####Similar to the overnight assay, expanded Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status. 
 
 *I maybe want to do some analysis about the fact that now higher frequencies of cells express T-bet and/or GATA3 and that there seems to be a preferential expansion of CCR4+ cells but I honestly don't know how to test that*
-```{r, fig.height=6, fig.width=10}
+
+```{r og main four markers, fig.width=16, fig.height=8}
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3", "CXCR3", "CCR4"))
+
+a<-baseplot(melt[melt$variable=="T-bet",], "disease", "value", ltbi.cols)+    
+    facet_wrap(~variable)+
+    labs(y="(%) Total CD4+ T cells")+coord_cartesian(ylim=c(0,100))
+
+b<-baseplot(melt[melt$variable=="GATA3",], "disease", "value", ltbi.cols)+    
+    facet_wrap(~variable)+coord_cartesian(ylim=c(0,100))
+
+c<-baseplot(melt[melt$variable=="CXCR3",], "disease", "value", ltbi.cols)+    
+    facet_wrap(~variable)+coord_cartesian(ylim=c(0,100))
+
+d<-baseplot(melt[melt$variable=="CCR4",], "disease", "value", ltbi.cols)+    
+    facet_wrap(~variable)+coord_cartesian(ylim=c(0,100))
+
+cowplot::plot_grid(a, b, c, d,ncol=4)
+```
+
+```{r og phenotype, fig.width=16, fig.height=8}
 #graph phenotype
 melt<-melt(ogphen, id.vars=c("TB", "SM"), measure.vars = grep("._._._.", names(ogphen)))
 test<-filter(melt, variable!="x_x_x_x")
@@ -453,7 +372,7 @@ booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free",
 #TB  
 ####Similar to QFT+, individuals with active TB, co-infected with S. mansoni maintain function Mtb-specific CD4+ T cell cytokine production. There are higher frequencies of TH1/2 cytokine co-producing CD4+ T cells amongst SM+ individuals, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still TH1 cytokine producing cells.
 *Again this is where I need an aesthetics opinion*
-```{r tb cytokine ics, fig.width=10, fig.height=6}
+```{r tb cytokine ics, fig.width=16, fig.height=8}
 cyt<-filter_tb(subset(CYT, CYT$Stim=="PEP"))
 phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
 og<-filter_tb(subset(OG, OG$Stim=="PEP"))
@@ -493,7 +412,28 @@ cowplot::plot_grid(a, b, c, d,ncol=4)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers. There are numerous phenotypic differences amongst Mtb-specific TH1 cytokine producing cells betweeen SM- and SM+ groups. While T-bet is still the dominant transcription factor expressed in both groups, most differences are due to higher frequencies of GATA3 and CCR4 co-expressing cells.
-```{r, fig.width=10, fig.height=6}
+
+```{r main four markers, fig.width=16, fig.height=8}
+melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("TH1_T-bet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4"))
+melt$variable<-gsub("TH1_", "", melt$variable)
+
+a<-baseplot(melt[melt$variable=="T-bet",], "SM", "value", tb.cols)+    
+    facet_wrap(~variable)+
+    labs(y="(%) Total CD4+ T cells")
+
+b<-baseplot(melt[melt$variable=="GATA3",], "SM", "value", tb.cols)+    
+    facet_wrap(~variable)
+
+c<-baseplot(melt[melt$variable=="CXCR3",], "SM", "value", tb.cols)+    
+    facet_wrap(~variable)
+
+d<-baseplot(melt[melt$variable=="CCR4",], "SM", "value", tb.cols)+    
+    facet_wrap(~variable)
+
+cowplot::plot_grid(a, b, c, d,ncol=4)
+```
+
+```{r, fig.width=16, fig.height=8}
 #graph phenotype
 melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
 test<-filter(melt, variable!="TH1_x_x_x_x")
@@ -538,4 +478,71 @@ booleanplot(test, "variable", "value", tb.cols)+facet_wrap(~tf, scales="free", n
 ```
 
 
+#Supplementary
+
+```{r ics phenotyping, fig.width=16, fig.height=8}
+phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+
+melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
+test<-filter(melt, variable!="TH1_x_x_x_x")
+test$variable<-gsub("TH1_", "", test$variable)
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free", ncol=4)+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=6)+
+    labs(y="Frequency of Transcription Factor \n Mtb-Specific TH1 cells (%)")
+
+```
+
+```{r}
+lum_x<-lum[lum$SM=="SM-",]
+df_x<-as.matrix(lum_x[,3:11])
+row.names(df_x)<-lum_x$Sample
+hc_x <- hclust(as.dist(1-cor(df_x)))
+x<-plot(hc_x)
+
+lum_sm<-lum[lum$SM=="SM+",]
+df_sm<-as.matrix(lum_sm[,3:11])
+row.names(df_sm)<-lum_sm$Sample
+hc_sm <- hclust(as.dist(1-cor(df_sm)))
+sm<-plot(hc_sm)
+
+
+df<-as.matrix(lum[,3:11])
+#heatmap(t(df_x), Rowv=as.dendrogram(hc_x))
+#heatmap(t(df_sm), Rowv=as.dendrogram(hc_sm))
+#heatmap(t(df), Rowv=as.dendrogram(hc_sm))
+```
 
