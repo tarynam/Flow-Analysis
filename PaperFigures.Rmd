@@ -54,7 +54,7 @@ allplot<-function(data, xval, yval, colors){
     scale_fill_manual(values = colors)+
     theme_classic()+ 
     facet_wrap(~variable)+
-    scale_x_discrete(labels=c("\nNaive","SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
+    scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
     theme(text = element_text(size=20))+
     theme(plot.subtitle = element_text(hjust = 0.5))+
     stat_compare_means(method = 'wilcox.test', label="p.signif", hide.ns=TRUE, size=10)+
@@ -89,14 +89,14 @@ luminex<-read.csv("/Applications/Old Computer/Day Lab/Luminex/Clean Data/Luminex
 #All groups
 Dont worry I can change this so the ns bars don't show up, especially for the cytokines since I have no idea why that giant NS is there. But for now I'm leaving them so we know.
 ```{r}
-cd4<-filter_all(subset(CD4, CD4$Stim=="UN"))
-cyt<-filter_all(subset(CYT, CYT$Stim=="PMA"))
-phen<-filter_all(subset(PHEN, PHEN$Stim=="PMA"))
-og<-filter_all(subset(OG, OG$Stim=="SEB"))
-ogphen<-filter_all(subset(OGPHEN, OGPHEN$Stim=="SEB"))
+cd4<-plot_filter(subset(CD4, CD4$Stim=="UN"))
+cyt<-plot_filter(subset(CYT, CYT$Stim=="PMA"))
+phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
+og<-plot_filter(subset(OG, OG$Stim=="SEB"))
+ogphen<-plot_filter(subset(OGPHEN, OGPHEN$Stim=="SEB"))
 ```
 
-```{r, fig.width=20, fig.height=8}
+```{r, fig.width=15, fig.height=8}
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3", "CXCR3", "CCR4"))
 
 allplot(melt, "TB", "value", all.cols)+    
@@ -116,7 +116,7 @@ allplot(melt, "TB", "value", all.cols)+
 #Healthy Adults
 *Is this superfluous now?*  
 ####Generic cytokine production from CD4+ T cells stimulated with PMA & Ionomycin does not differ between SM- and SM+ Healthy Adults
-```{r, fig.width=18, fig.height=9.5}
+```{r, fig.width=15, fig.height=8}
 melt<-melt(subset(CYT, CYT$Stim=="PMA"), 
            id.vars=c("TB","SM"), 
            measure.vars=c("TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
@@ -144,7 +144,7 @@ cowplot::plot_grid(a, b, c, ncol=3)
 ####Generic TH1 and TH2 cytokine producing cells are stratified by lineage-specific transcription factors, and CCR4
 Amongst TH1 cytokine producing CD4+ T cells, moderate frequencies express the transcription factor T-bet while very low frequencies express GATA3. In contrast, amongst TH2 cytokine producing CD4+ T cells, low frequencies express T-bet while high frequencies express GATA3. Similarly high frequencies of TH2 cytokine producing cells express CCR4 compared to TH1 cytokine producing cells. Both TH1 and TH2 cells have equivalent moderate frequencies of CXCR3 expressing cells. There are no differences by S. mansoni status.  
 
-```{r, fig.width=16, fig.height=20}
+```{r, fig.width=15, fig.height=8}
 phen<-filter_hc(subset(PHEN, PHEN$Stim=="PMA"))
 test<-melt(phen, id.vars=c("TB", "SM"), 
            measure.vars=c("TH1_T-bet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4",
@@ -207,7 +207,7 @@ ogphen<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
 oggt<-filter_ltbi(subset(OG.GT, OG.GT$Stim=="PEP"))
 ```
 
-```{r cytokine, fig.width=16, fig.height=8}
+```{r cytokine, fig.width=15, fig.height=8}
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
 
 a<-baseplot(melt[melt$variable=="IFNg",], "SM", "value", ltbi.cols)+    
@@ -235,7 +235,7 @@ cowplot::plot_grid(a, b, c, d,ncol=4)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status
-```{r ics main four markers, fig.width=16, fig.height=8}
+```{r ics main four markers, fig.width=15, fig.height=8}
 melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("ifng_T-bet", "ifng_GATA3", "ifng_CXCR3", "ifng_CCR4"))
 melt$variable<-gsub("ifng_", "", melt$variable)
 melt$variable <- factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4"))
@@ -262,7 +262,7 @@ phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
 ####Similar to QFT+, individuals with active TB, co-infected with S. mansoni maintain function Mtb-specific CD4+ T cell cytokine production. There are higher frequencies of TH1/2 cytokine co-producing CD4+ T cells amongst SM+ individuals, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still TH1 cytokine producing cells.
 *Again this is where I need an aesthetics opinion*
 
-```{r, fig.width=16, fig.height=8}
+```{r, fig.width=15, fig.height=8}
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
 
 a<-baseplot(melt[melt$variable=="IFNg",], "disease", "value", tb.cols)+    
@@ -287,7 +287,7 @@ cowplot::plot_grid(a, b, c, d,ncol=4)
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers. There are numerous phenotypic differences amongst Mtb-specific TH1 cytokine producing cells betweeen SM- and SM+ groups. While T-bet is still the dominant transcription factor expressed in both groups, most differences are due to higher frequencies of GATA3 and CCR4 co-expressing cells.
 
-```{r main four markers, fig.width=16, fig.height=8}
+```{r main four markers, fig.width=15, fig.height=8}
 melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("TH1_T-bet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4"))
 melt$variable<-gsub("TH1_", "", melt$variable)
 melt$variable<-factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4"))
@@ -306,7 +306,7 @@ b<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", tb.cols
 cowplot::plot_grid(a, b, ncol=2)
 ```
 
-```{r, fig.width=16, fig.height=8}
+```{r, fig.width=15, fig.height=8}
 #graph phenotype
 melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
 test<-filter(melt, variable!="TH1_x_x_x_x")
@@ -354,7 +354,7 @@ booleanplot(test, "variable", "value", tb.cols)+facet_wrap(~tf, scales="free_x",
 
 
 ####There are no differences in Mtb-specific proliferation betweeen SM+ and SM- QF+ individuals. The cytokine production from expanded Mtb-specific CD4+ T cells only differs with regards to IFNγ IL-4 co-production, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still cells that co-produce IFNγ and TNFα. 
-```{r og and cyt, fig.width=16, fig.height=8}
+```{r og and cyt, fig.width=15, fig.height=8}
 a<-baseplot(og, "SM", "OG_freq", ltbi.cols)+
     labs(y="(%) CD4+ T cells")+
     facet_wrap(~TB, labeller = as_labeller(c("LTBI"="Proliferation")))+
@@ -394,7 +394,7 @@ b<-booleanplot(test, "variable", "value", ltbi.cols)+
     facet_grid(~group, scales="free_x", space="free_x")+
     labs(y="(%) Proliferating CD4+ T cells")
 
-cowplot::plot_grid(a, b, ncol=2, rel_widths=c(1,3.5), align="h")
+cowplot::plot_grid(a, b, ncol=2, rel_widths=c(1.25,3.75), align="h")
 ```
 
 ####Similar to the overnight assay, expanded Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status. 
