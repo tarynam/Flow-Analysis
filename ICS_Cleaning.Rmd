@@ -41,7 +41,7 @@ write.csv(ICS_Compass_scores_complete.csv,
 #and assigns the output of that to the same named list
 #so at every step the list of dataframes gets updated based on the function output 
 
-l<-list(CD4_Counts.csv, CD4_Cytokine.csv, CD4_MFI.csv, CD4_new.csv,
+l<-list(CD4_Counts.csv, CD4_cytokine_new.csv, CD4_Cytokine.csv, CD4_MFI.csv, CD4_new.csv,
         CD4_phenotype_new.csv, CD4_phenotype.csv, CD4.csv, 
         CD8_Counts.csv, CD8_Cytokine.csv, 
         GD_Counts.csv, GD_Cytokine.csv
@@ -106,13 +106,39 @@ CD4_Cytokine.csv<-dplyr::select(CD4_Cytokine.csv, -Cyt.Count, -TH1.Count, -TH1.2
 ```
 
 ```{r update and organize cytokine variables}
-#If you want to know the double producers without considering the opposite TH cytokines
 library(dplyr)
-CD4_Cytokine.csv<-dplyr::mutate(CD4_Cytokine.csv, G_T = G_4_x_T + G_x_13_T + G_x_x_T,
-                   IL4_IL13 = G_4_13_x + x_4_13_T + x_4_13_x,
-                   TH1.Total = TH1.Freq + TH1.2.Freq,
-                   TH2.Total = TH2.Freq + TH1.2.Freq
+CD4_Cytokine<-merge(CD4_Cytokine.csv, CD4_cytokine_new.csv, by=c("Sample","Donor","TB","SM","Stim" ), all=TRUE)
+#If you want to know the double producers without considering the opposite TH cytokines
+CD4_Cytokine<-dplyr::mutate(CD4_Cytokine, 
+         G_T = G_4_x_T + G_x_13_T + G_x_x_T,
+         IL4_IL13 = G_4_13_x + x_4_13_T + x_4_13_x,
+         TH1.Total = TH1.Freq + TH1.2.Freq,
+         TH2.Total = TH2.Freq + TH1.2.Freq
                    )
+#To collapse boolean gates in transcription factor exported data
+CD4_Cytokine<-dplyr::mutate(CD4_Cytokine, 
+        tbet_ifng=  rowSums(CD4_Cytokine[,grep("tbet_G", names(CD4_Cytokine))]),
+        tbet_tnfa=  rowSums(CD4_Cytokine
+                    [intersect(grep("tbet", names(CD4_Cytokine)) , grep("_T", names(CD4_Cytokine)))]),
+        tbet_il4=   rowSums(CD4_Cytokine[,grep("tbet_._4_", names(CD4_Cytokine))]),
+        tbet_il13=  rowSums(CD4_Cytokine[,grep("tbet_._._13", names(CD4_Cytokine))]),
+        gata3_ifng= rowSums(CD4_Cytokine[,grep("gata3_G", names(CD4_Cytokine))]),
+        gata3_tnfa= rowSums(CD4_Cytokine
+                    [intersect(grep("gata3", names(CD4_Cytokine)) , grep("_T", names(CD4_Cytokine)))]),
+        gata3_il4=  rowSums(CD4_Cytokine[,grep("gata3_._4_", names(CD4_Cytokine))]),
+        gata3_il13= rowSums(CD4_Cytokine[,grep("gata3_._._13", names(CD4_Cytokine))])
+            )
+
+CD4_Cytokine<-dplyr::mutate(CD4_Cytokine, 
+        tbet_th1=  tbet_G_x_x_T + tbet_G_x_x_x + tbet_x_x_x_T,
+        tbet_th2=  tbet_x_4_13_x + tbet_x_4_x_x + tbet_x_x_13_x,
+        tbet_th1.2=tbet_G_4_13_T + tbet_G_4_13_x + tbet_G_4_x_T + tbet_G_4_x_x + 
+            tbet_G_x_13_T + tbet_G_x_13_x + tbet_x_4_13_T + tbet_x_4_x_T + tbet_x_x_13_T,
+        gata3_th1=  gata3_G_x_x_T + gata3_G_x_x_x + gata3_x_x_x_T,
+        gata3_th2=  gata3_x_4_13_x + gata3_x_4_x_x + gata3_x_x_13_x,
+        gata3_th1.2=gata3_G_4_13_T + gata3_G_4_13_x + gata3_G_4_x_T + gata3_G_4_x_x + 
+            gata3_G_x_13_T + gata3_G_x_13_x + gata3_x_4_13_T + gata3_x_4_x_T + gata3_x_x_13_T 
+            )
 ```
 
 ```{r update and merge phenotype data}
@@ -221,15 +247,15 @@ CD4_MFI.csv<-DF
 ```{r subtract unstimulated from cyt freq tables}
 #the documentation for the background.subtract function is in a script in the miscellaneous folder
 #just subtracts the value of the unstim from the value of the stim by donor
-filenames = c("CD4_Cytokine.csv", "CD8_Cytokine.csv", "GD_Cytokine.csv")
-l<-list(CD4_Cytokine.csv, CD8_Cytokine.csv, GD_Cytokine.csv)
+filenames = c("CD4_Cytokine", "CD8_Cytokine.csv", "GD_Cytokine.csv")
+l<-list(CD4_Cytokine, CD8_Cytokine.csv, GD_Cytokine.csv)
 l<-lapply(l, function(x) arrange(x, Donor))
 l<-lapply(l, function(x) background.subtract(x, "Donor", "Stim", "UN"))
 for (i in 1:length(filenames)) {
     assign(filenames[i], 
            data.frame(l[i]))}
 #sets all negative values to zero
-CD4_Cytokine.csv[CD4_Cytokine.csv<0]<-0
+CD4_Cytokine[CD4_Cytokine<0]<-0
 CD8_Cytokine.csv[CD8_Cytokine.csv<0]<-0
 GD_Cytokine.csv[GD_Cytokine.csv<0]<-0
 ```
@@ -249,7 +275,7 @@ GD_Cytokine.csv<-filter(GD_Cytokine.csv, !(Donor %in% cd8.remove))
 ```{r write files to "clean" directory}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 write.csv(CD4_Counts.csv, file = "ICS_CD4_Counts_clean.csv")
-write.csv(CD4_Cytokine.csv, file = "ICS_CD4_Cytokine_clean.csv")
+write.csv(CD4_Cytokine, file = "ICS_CD4_Cytokine_clean.csv")
 write.csv(CD4_MFI.csv, file = "ICS_CD4_MFI_clean.csv")
 write.csv(CD4_phenotype, file = "ICS_CD4_phenotype_clean.csv")
 write.csv(CD4, file = "ICS_CD4_clean.csv")

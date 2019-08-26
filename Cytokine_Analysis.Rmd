@@ -30,15 +30,15 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
 ```{r load data, echo=FALSE}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 
-CD4<-plot_filter(read.csv("ICS_CD4_Cytokine_clean.csv"))
+CD4<-read.csv("ICS_CD4_Cytokine_clean.csv")
 
-CD8<-plot_filter(read.csv("ICS_CD8_Cytokine_clean.csv"))
+CD8<-read.csv("ICS_CD8_Cytokine_clean.csv")
 
-MFI<-plot_filter(read.csv("ICS_CD4_MFI_clean.csv"))
+MFI<-read.csv("ICS_CD4_MFI_clean.csv")
 
-Compass<-plot_filter(read.csv("ICS_Compass_scores_complete_clean.csv"))
+Compass<-read.csv("ICS_Compass_scores_complete_clean.csv")
 
-GD<-plot_filter(read.csv("ICS_GD_Cytokine_clean.csv"))
+GD<-read.csv("ICS_GD_Cytokine_clean.csv")
 
 data<-read.csv("ICS_DonorInfo_clean.csv")
 data$TB<-gsub("BCG|Unknown", "Naïve", data$TB)
@@ -56,10 +56,12 @@ colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
 for(col in colnames){#this will loop through each character string in the list
     a<-subset(CD4, CD4$Stim=="PMA") #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_4(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
-}
+    b<-pvals_6(a, col)
+    if(dim(b)[1]!=0){
+    print(kable(b, caption=col))#will return the output for each character string in the loop
+    y<-plot_with_all_stats(a, col)+labs(title=col)
+    print(y)}
+    }
 ```
 
 
@@ -71,10 +73,12 @@ colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
 for(col in colnames){#this will loop through each character string in the list
     a<-subset(CD4, CD4$Stim=="WCL") #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_4(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
-}
+    b<-pvals_6(a, col)
+    if(dim(b)[1]!=0){
+    print(kable(b, caption=col))#will return the output for each character string in the loop
+    y<-plot_with_all_stats(a, col)+labs(title=col)
+    print(y)}
+    }
 ```
 
 ##CFP-10 & ESAT-6
@@ -85,10 +89,12 @@ colnames<-names(dplyr::select(CD4, -X, -Sample, -Donor, -Stim, -TB, -SM))
 for(col in colnames){#this will loop through each character string in the list
     a<-subset(CD4, CD4$Stim=="PEP") #subsets the data to only contain the unstimulated samples
     #inserts each character string into the column argument of the pvals function written above
-    b<-pvals_4(a, col)
-    if(dim(b)[1]!=0)
-    print(kable(b, caption=col)) #will return the output for each character string in the loop
-}
+    b<-pvals_6(a, col)
+    if(dim(b)[1]!=0){
+    print(kable(b, caption=col))#will return the output for each character string in the loop
+    y<-plot_with_all_stats(a, col)+labs(title=col)
+    print(y)}
+    }
 ```
 
 ```{r}
