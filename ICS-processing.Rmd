@@ -391,7 +391,7 @@ tbet<-data.frame(bind_cols(l.col))
 names(tbet)<-c("G_4_13_T", "G_4_13_x", "G_4_x_T", "G_4_x_x",  
                 "G_x_13_T", "G_x_13_x", "G_x_x_T", "G_x_x_x",
                   "x_4_13_T", "x_4_13_x", "x_4_x_T", "x_4_x_x",
-                  "x_x_13_T", "x_x_3_x", "x_x_x_T", "x_x_x_x"
+                  "x_x_13_T", "x_x_13_x", "x_x_x_T", "x_x_x_x"
                   )
 newnames<-paste("tbet", names(tbet), sep="_")
 names(tbet)<-newnames
@@ -583,12 +583,11 @@ gata3<-data.frame(bind_cols(l.col))
 names(gata3)<-c("G_4_13_T", "G_4_13_x", "G_4_x_T", "G_4_x_x",  
                 "G_x_13_T", "G_x_13_x", "G_x_x_T", "G_x_x_x",
                   "x_4_13_T", "x_4_13_x", "x_4_x_T", "x_4_x_x",
-                  "x_x_13_T", "x_x_3_x", "x_x_x_T", "x_x_x_x"
+                  "x_x_13_T", "x_x_13_x", "x_x_x_T", "x_x_x_x"
                   )
 newnames<-paste("gata3", names(gata3), sep="_")
 names(gata3)<-newnames
 gata3$Sample<-names(x_x_x_x)
-gata3<-dplyr::filter(gata3$Sample!="NK2421_LTBI_SM_PEP")
 ```
 
 
@@ -1370,6 +1369,8 @@ boolean$Sample<-gsub("T8" , "8" , boolean$Sample)
 #new cytokine data
 cyt<-merge(tbet, gata3, by="Sample")
 cyt$Sample<-gsub("T8" , "8" , cyt$Sample)
+cyt$Sample<-gsub("T3" , "3" , cyt$Sample)
+
 
 #phenotyping
 pheno<-data.frame(merge(TH1, TH2, by="Sample"))
@@ -1383,9 +1384,9 @@ pheno$Sample<-gsub("T8" , "8" , pheno$Sample)
 
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported/")
-write.csv(boolean, "CD4_new.csv")
+#write.csv(boolean, "CD4_new.csv")
 write.csv(cyt, "CD4_cytokine_new.csv")
-write.csv(pheno, "CD4_phenotype_new.csv")
+#write.csv(pheno, "CD4_phenotype_new.csv")
 ```
 
 
