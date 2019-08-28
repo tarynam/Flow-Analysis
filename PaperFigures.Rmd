@@ -1,11 +1,11 @@
 ---
 title: "Paper Figures"
 author: "Taryn McLaughlin"
-date: "7/29/2019"
+date: "8/27/2019"
 output: html_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA, warning=FALSE, echo=FALSE)
+knitr::opts_chunk$set(message = FALSE, comment=NA, warning=FALSE, echo=FALSE)
 library(dplyr)
 library(knitr)
 library(ggplot2)
@@ -31,6 +31,7 @@ baseplot<-function(data, xval, yval, colors){
     geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
     scale_fill_manual(values = colors)+
     theme_classic()+ theme(legend.position="none")+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
     theme(text = element_text(size=20))+
     theme(plot.subtitle = element_text(hjust = 0.5)) +
     labs(x="", y="")
@@ -53,6 +54,8 @@ allplot<-function(data, xval, yval, colors){
     geom_boxplot(size=1, position=position_dodge2(width=0.2, padding = 0.2, preserve = "single"), outlier.shape = NA)+
     scale_fill_manual(values = colors)+
     theme_classic()+ 
+    theme(legend.position="none") +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
     facet_wrap(~variable)+
     scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
     theme(text = element_text(size=20))+
@@ -93,49 +96,33 @@ Statistics were performed using the Mann-Whitney U test for non-parametric data.
 cd4<-plot_filter(subset(CD4, CD4$Stim=="UN"))
 cyt<-plot_filter(subset(CYT, CYT$Stim=="PMA"))
 phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
-og<-plot_filter(subset(OG, OG$Stim=="SEB"))
-ogphen<-plot_filter(subset(OGPHEN, OGPHEN$Stim=="SEB"))
 ```
 
 ```{r, fig.width=15, fig.height=8}
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3"))
 
 tf<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, ncol=2)+
-    theme(legend.position="none") +
     labs(y="(%) Total CD4+ T cells")
 
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("CXCR3", "CCR4"))
 
-sm<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, ncol=2)+
-    theme(legend.position="none") 
+sm<-allplot(melt, "TB", "value", all.cols) 
 
 cowplot::plot_grid(tf, sm)
 
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
 
 one<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, scales="free", labeller = cyt_groups, ncol=2)+
-    labs(y="(%) Total CD4+ T cells")+
-    theme(legend.position="none") 
+    facet_wrap(~variable, labeller = cyt_groups, ncol=2)+
+    labs(y="(%) Total CD4+ T cells")
 
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4"))
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
 
-four<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, scales="free", labeller = cyt_groups, ncol=1)+
-    theme(legend.position="none")+
-    coord_cartesian(ylim=c(0,7))
+two<-allplot(melt, "TB", "value", all.cols)+    
+    facet_wrap(~variable, labeller = cyt_groups, ncol=2)+
+    coord_cartesian(ylim=c(0,8))
 
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL13"))
-
-
-thirteen<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, scales="free", labeller = cyt_groups, ncol=1)+
-    theme(legend.position="none")+
-    coord_cartesian(ylim=c(0,3))
-
-cowplot::plot_grid(one, four, thirteen, ncol=3, rel_widths=c(7.5,3.75, 3.75))
+cowplot::plot_grid(one, two)
 ```
 
 ```{r pvals for ifng and tnfa}
@@ -210,7 +197,6 @@ b<-booleanplot(test, "SM","value", ltbi.cols)+
     facet_grid(variable~subset, scales="free")+
     theme(panel.border = element_rect(fill = NA, colour = "black"))
 
-
 phen<-filter_tb(subset(PHEN, PHEN$Stim=="PMA"))
 test<-melt(phen, id.vars=c("TB", "SM"), 
            measure.vars=c("TH1_T-bet", "TH1_GATA3", "TH1_CXCR3", "TH1_CCR4",
@@ -238,30 +224,20 @@ phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
 ```
 
 ```{r cytokine, fig.width=15, fig.height=8}
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
-
-a<-baseplot(melt[melt$variable=="IFNg",], "SM", "value", ltbi.cols)+    
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
+a<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
     stat_compare_means(label="p.format", size=6, label.x=1.3, label.y = (.95*.15))+
     coord_cartesian(ylim=c(0,.15))+
     labs(y="(%) CD4+ T cells")
 
-b<-baseplot(melt[melt$variable=="TNFa",], "SM", "value", ltbi.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(label="p.format", size=6, label.x=1.3, label.y = (.95*.15))+
-    coord_cartesian(ylim=c(0,.15))
-
-c<-baseplot(melt[melt$variable=="IL4",], "SM", "value", ltbi.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(label="p.format", size=6, label.x=1.3, label.y = (.95*.013))+
-    coord_cartesian(ylim=c(0,.013))
-
-d<-baseplot(melt[melt$variable=="IL13",], "SM", "value", ltbi.cols)+    
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
+b<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
     stat_compare_means(label="p.format", size=6, label.x=1.3, label.y = (.95*.02))+
     coord_cartesian(ylim=c(0,.02))
 
-cowplot::plot_grid(a, b, c, d,ncol=4)
+cowplot::plot_grid(a, b)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status
@@ -295,26 +271,20 @@ phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
 *Again this is where I need an aesthetics opinion*
 
 ```{r, fig.width=15, fig.height=8}
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
-
-a<-baseplot(melt[melt$variable=="IFNg",], "disease", "value", tb.cols)+    
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
+a<-baseplot(melt, "disease", "value", tb.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
-    labs(y="(%) CD4+ T cells")+
-    coord_cartesian(ylim=c(0,.06))
+    stat_compare_means(label="p.format", size=6, label.x=1.3, label.y=(.95*.15))+
+    coord_cartesian(ylim=c(0,.15))+
+    labs(y="(%) CD4+ T cells")
 
-b<-baseplot(melt[melt$variable=="TNFa",], "disease", "value", tb.cols)+    
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
+b<-baseplot(melt, "disease", "value", tb.cols)+ 
     facet_wrap(~variable, labeller = cyt_groups)+
-    coord_cartesian(ylim=c(0,.15))
-
-c<-baseplot(melt[melt$variable=="IL4",], "disease", "value", tb.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups)+
+    stat_compare_means(label="p.format", size=6, label.x=1.3, label.y=(.95*.02))+
     coord_cartesian(ylim=c(0,.02))
 
-d<-baseplot(melt[melt$variable=="IL13",], "disease", "value", tb.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups)+
-    coord_cartesian(ylim=c(0,.02))
-
-cowplot::plot_grid(a, b, c, d,ncol=4)
+cowplot::plot_grid(a, b)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers. There are numerous phenotypic differences amongst Mtb-specific TH1 cytokine producing cells betweeen SM- and SM+ groups. While T-bet is still the dominant transcription factor expressed in both groups, most differences are due to higher frequencies of GATA3 and CCR4 co-expressing cells.
@@ -496,6 +466,7 @@ cowplot::plot_grid(a,b,ncol=2)
 ####Furthermore, IFNγ and TNFa are also the two dominant cytokines produced when analyzed by luminex. The concentration of all cytokines measured by luminex are equivalent between SM- and SM+ groups.
 
 *Honestly I will have to just remake the whole thing a couple times and stitch them together to fix the axes so just ignore them for now*
+
 ```{r luminex, fig.width=12, fig.height=16}
 lum<-filter_ltbi(subset(luminex, luminex$Stim=="PEP"))
 names(lum)<-gsub("IL", "IL-", names(lum))
@@ -508,6 +479,10 @@ melt$variable<- factor(melt$variable, levels=c("TNFα", "IFNγ", "IL-21", "IL-17
 
 booleanplot(melt, "SM", "value", ltbi.cols)+facet_wrap(~variable, scales="free")+
     labs(y="pg/mL")
+
+booleanplot(melt, "SM", "value", ltbi.cols)+facet_wrap(~variable, scales="free")+
+    labs(y="pg/mL")+
+    coord_cartesian(ylim=c(0,40))
 ```
 
 
