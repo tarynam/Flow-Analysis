@@ -1,0 +1,218 @@
+---
+title: "gamma-delta-figures"
+author: "Taryn McLaughlin"
+date: "8/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment=NA, warning=FALSE, echo=FALSE)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(ggpubr)
+library(cowplot)
+library(tidyr)
+library(reshape2)
+library(cowplot)
+library(corrplot)
+library(sjPlot)
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
+```
+
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
+    PBMC<-PBMC[grep("OG", PBMC$used),]
+    plot_3(PBMC[PBMC$SM=="SM",], "SchistosomaIntensity")+
+    labs(y="Eggs/gram")
+```
+
+#ICS Assay
+
+```{r, fig.width=12, fig.height=8}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+compass<-read.csv("ICS_compass_complete_clean.csv")
+compass$TB<-factor(compass$TB, levels=c("N", "HC", "LTBI", "TB"))
+
+include<-subset(compass, compass$Stim %in% c("SEA", "SWAP"))
+plot_cell(include, "FS")+
+    facet_grid(Stim~TB)+
+    scale_x_discrete(labels = c("CD4", "CD8", "CD4-CD8-"))+
+    labs(y="Functionality Score",
+         title="Includes SM-")
+
+exclude<-subset(include, include$SM!="X")
+plot_cell(exclude, "FS")+
+    facet_grid(Stim~TB)+
+    scale_x_discrete(labels = c("CD4", "CD8", "CD4-CD8-"))+
+    labs(y="Functionality Score",
+         title="Excludes SM-")
+```
+
+#Proliferation Assay
+```{r load og data}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+gd<-dplyr::select(read.csv("OG_gd_bulk_summary_clean.csv"), -X, -X.1)
+gd_OG<-dplyr::select(read.csv("OG_gd_OG_summary_clean_NAs.csv"), -X)
+GD<-dplyr::select(read.csv("OG_GDonly_bulk_summary_clean.csv"), -X, -X.1)
+GD_OG<-dplyr::select(read.csv("OG_GDonly_OG_summary_clean_NAs.csv"), -X)
+CD3<-dplyr::select(read.csv("OG_CD3_bulk_summary_clean.csv"), -X, -X.1)
+CD3_OG<-dplyr::select(read.csv("OG_CD3_OG_summary_clean.csv"), -X, -X.1)
+mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
+    mimosa<-dplyr::filter(mimosa, celltype=="GD" & Exprate==0.01)
+```
+
+###*I was conflicted so all the plots on the left will include the SM- donors, whereas the plots on the right will exclude them.  I still have to export the proliferation data for the yerkes donors but that's a good chunk of time/effort so I'm waiting until the other paper is further along*  
+
+###Starting Frequency of Gamma Delta Cells
+```{r}
+include<-subset(CD3, CD3$Stim=="UN")
+a<-plot_3(include, "GD_freq")+
+    coord_cartesian(ylim=c(0,35))+
+    labs(y="(%) CD3+ T cells",
+         title="Includes SM-")
+
+exclude<-subset(include, include$SM=="SM")
+b<-plot_3(exclude, "GD_freq")+
+    coord_cartesian(ylim=c(0,35))+
+    labs(y="(%) CD3+ T cells",
+         title="Excludes SM-")
+
+cowplot::plot_grid(a,b)
+```
+
+###Proliferation of Gamma Delta Cells
+```{r}
+include<-subset(gd, gd$Stim=="SWAP")
+a<-plot_3(include, "OG_freq")+
+    labs(y="(%) γδ T cells")
+
+exclude<-subset(include, include$SM=="SM")
+b<-plot_3(exclude, "OG_freq")+
+    labs(y="(%) γδ T cells")
+
+cowplot::plot_grid(a,b)
+```
+
+
+###Proportion of proliferating Gamma Delta Cells
+```{r, fig.width=12, fig.height=6}
+include<-subset(CD3_OG, CD3_OG$Stim=="SWAP")
+melt<-melt(include, id.vars=c("TB", "SM"), measure.vars=c("CD4_freq", "CD8_freq", "GD_freq"))
+melt$celltype<-gsub("_freq", "",melt$variable)
+
+a<-plot_3(melt, "value")+
+    facet_grid(~variable, labeller = as_labeller(c("CD4_freq"="CD4", "CD8_freq"="CD8", "GD_freq"="γδ")))+
+    #coord_cartesian(ylim=c(0,65))+
+    labs(y="(%) Proliferating T cells",
+         title="Includes SM-")
+
+exclude<-subset(melt, melt$SM=="SM")
+b<-plot_3(melt, "value")+
+    facet_grid(~variable, labeller = as_labeller(c("CD4_freq"="CD4", "CD8_freq"="CD8", "GD_freq"="γδ")))+
+    labs(y="(%) Proliferating T cells",
+         title="Excludes SM-")
+
+cowplot::plot_grid(a,b)
+```
+
+```{r, fig.width=12, fig.height=6}
+include<-subset(CD3_OG, CD3_OG$Stim=="SWAP")
+melt<-melt(include, id.vars=c("TB", "SM"), measure.vars=c("CD4_freq", "CD8_freq", "GD_freq"))
+melt$celltype<-gsub("_freq", "",melt$variable)
+
+a<-plot_cell(melt, "value")+
+    facet_grid(~TB)+
+    scale_x_discrete(labels = c("CD4", "CD8", "γδ"))+
+    labs(y="(%) Proliferating+ T cells",
+         title="Includes SM-")
+
+exclude<-subset(melt, melt$SM=="SM")
+b<-plot_cell(melt, "value")+
+    facet_grid(~TB)+
+    scale_x_discrete(labels = c("CD4", "CD8", "γδ"))+
+    labs(y="(%) Proliferating+ T cells",
+         title="Excludes SM-")
+
+cowplot::plot_grid(a,b)
+```
+
+
+###IL-4
+```{r}
+include<-subset(gd_OG, gd_OG$Stim=="SWAP")
+a<-plot_3(include, "IL4_freq")+
+    labs(y="(%) Proliferating γδ T cells")
+
+exclude<-subset(include, include$SM=="SM")
+b<-plot_3(exclude, "IL4_freq")+
+    labs(y="(%) Proliferating γδ T cells")
+
+cowplot::plot_grid(a,b)
+```
+
+###TNFa
+```{r}
+include<-subset(gd_OG, gd_OG$Stim=="SWAP")
+a<-plot_3(include, "TNFa_freq")+
+    labs(y="(%) Proliferating γδ T cells")
+
+exclude<-subset(include, include$SM=="SM")
+b<-plot_3(exclude, "TNFa_freq")+
+    labs(y="(%) Proliferating γδ T cells")
+
+cowplot::plot_grid(a,b)
+```
+
+###All Cytokine Combinations
+```{r}
+test<-subset(gd_OG, gd_OG$Stim=="SWAP")
+vars<-names(test)[grep("._._.", names(test))]
+vars<-vars[-grep("._._._.", vars)]
+
+include<-melt(test, id.vars=c("Donor", "TB", "SM", "Stim"), measure.vars = vars)
+include<-filter(include, variable!="x_x_x")
+include$variable<-factor(include$variable, levels=c(
+"T_G_x" ,       
+"T_x_x" ,         
+"x_G_x" ,         
+"T_G_4" ,
+"T_x_4" ,         
+"x_G_4" ,         
+"x_x_4"          
+))
+
+T <- c("+", "+", "-", "+", "+", "-", "-")
+G <- c("+", "-", "+", "+", "-", "+", "-")
+il4 <- c("-", "-", "-", "+", "+", "+", "+")
+
+labels <- paste0(T, "\n", G, "\n", il4)
+breaks <- levels(include$variable)
+
+ggplot(include, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot(outlier.shape = NA)+
+    scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
+    scale_x_discrete(labels=labels, breaks=breaks)+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Includes SM-",
+         y="(%) Proliferating γδ T cells")
+
+exclude<-subset(include, include$SM=="SM")
+ggplot(exclude, aes(x=variable, y=value, fill=TB))+
+    geom_boxplot(outlier.shape = NA)+
+    scale_fill_manual(values =c("#00AFBB", "#E7B800", "#FC4E07"))+
+    scale_x_discrete(labels=labels, breaks=breaks)+
+    stat_compare_means(label="p.signif", hide.ns = TRUE, size=8)+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title="Excludes SM-",
+         y="(%) Proliferating γδ T cells")
+```
+
