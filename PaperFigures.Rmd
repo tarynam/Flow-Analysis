@@ -1,7 +1,7 @@
 ---
 title: "Paper Figures"
 author: "Taryn McLaughlin"
-date: "8/27/2019"
+date: "8/28/2019"
 output: html_document
 ---
 ```{r setup, include=FALSE}
@@ -32,8 +32,8 @@ baseplot<-function(data, xval, yval, colors){
     scale_fill_manual(values = colors)+
     theme_classic()+ theme(legend.position="none")+
     theme(panel.border = element_rect(fill = NA, colour = "black"))+
-    theme(text = element_text(size=20))+
-    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
     labs(x="", y="")
 }
 
@@ -43,8 +43,8 @@ booleanplot<-function(data, xval, yval, colors){
     scale_fill_manual(values = colors)+
     theme_classic()+ 
     theme(legend.position="none")+
-    theme(text = element_text(size=20), axis.text.x = element_text(size=20))+
-    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(text = element_text(size=16), axis.text.x = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10)+
     labs(x="", y="")
 }
@@ -58,8 +58,8 @@ allplot<-function(data, xval, yval, colors){
     theme(panel.border = element_rect(fill = NA, colour = "black"))+
     facet_wrap(~variable)+
     scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
-    theme(text = element_text(size=20))+
-    theme(plot.subtitle = element_text(hjust = 0.5))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5))+
     stat_compare_means(method = 'wilcox.test', label="p.signif", hide.ns=TRUE, size=10)+
     labs(x="", y="")
 }
@@ -82,7 +82,7 @@ setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
 CD4<-read.csv("ICS_CD4_clean.csv")
 CYT<-read.csv("ICS_CD4_Cytokine_clean.csv")
 PHEN<-read.csv("ICS_CD4_phenotyping_clean_NAs.csv")
-OG<-read.csv("OG_CD4_bulk_summary_clean.csv")
+OG<-data.table(read.csv("OG_CD4_bulk_summary_clean.csv"))
 OGPHEN<-read.csv("OG_CD4_OG_summary_clean_NAs.csv")
 OG.IFNg<-read.csv("OG_CD4_OG.IFNg_summary_clean_NAs.csv")
 OG.GT<-read.csv("OG_CD4_OG.GT_summary_clean_NAs.csv")
@@ -98,6 +98,7 @@ cyt<-plot_filter(subset(CYT, CYT$Stim=="PMA"))
 phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
 ```
 
+#Figure 1
 ```{r, fig.width=15, fig.height=8}
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3"))
 
@@ -106,37 +107,43 @@ tf<-allplot(melt, "TB", "value", all.cols)+
 
 melt<-melt(cd4, id.vars=c("TB","SM", "disease"), measure.vars=c("CXCR3", "CCR4"))
 
-sm<-allplot(melt, "TB", "value", all.cols) 
-
-cowplot::plot_grid(tf, sm)
-
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
-
-one<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups, ncol=2)+
+sm<-allplot(melt, "TB", "value", all.cols) +    
     labs(y="(%) Total CD4+ T cells")
 
-melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
-
-two<-allplot(melt, "TB", "value", all.cols)+    
-    facet_wrap(~variable, labeller = cyt_groups, ncol=2)+
-    coord_cartesian(ylim=c(0,8))
-
-cowplot::plot_grid(one, two)
+first_row = cowplot::plot_grid(NULL, NULL, labels = c('A' , 'B'), nrow=1, label_size = 20, rel_widths = c(3,2))
+second_row = cowplot::plot_grid(tf, sm,labels = c('C', 'D'), nrow=1, label_size = 20)
+figure1<- cowplot::plot_grid(first_row, second_row, ncol=1, rel_heights = c(1,2))
 ```
 
 ```{r pvals for ifng and tnfa}
+kable(table(cd4$disease), caption="Total CD4 Phenotypes")
+kable(table(cyt$disease), caption="Total CD4 Cytokine")
+
 y<-split(cyt,cyt$SM) 
 A<-lapply(y, function(g) kruskal.test(IFNg~TB, g))
 B<-lapply(y, function(g) kruskal.test(TNFa~TB, g))
 
 pval<-c(A$`SM-`$p.value, A$`SM+`$p.value, B$`SM-`$p.value, B$`SM+`$p.value)
 comparison<-c("SM- IFNγ", "SM+ IFNγ", "SM- TNFα", "SM+ TNFα")
-kable(cbind(comparison, pval))
+kable(cbind(comparison, pval), caption="Stats across Tb groups")
 ```
 
+#Figure 2
 ####Generic cytokine production from CD4+ T cells stimulated with PMA & Ionomycin does not differ between SM- and SM+ Healthy Adults
 ```{r, fig.width=15, fig.height=8}
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
+
+one<-allplot(melt, "TB", "value", all.cols)+ 
+    facet_wrap(~variable, labeller = cyt_groups)+
+    labs(y="(%) Total CD4+ T cells")
+
+melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
+
+two<-allplot(melt, "TB", "value", all.cols)+
+    facet_wrap(~variable, labeller = cyt_groups)+
+    coord_cartesian(ylim=c(0,8))+
+    labs(y="(%) Total CD4+ T cells")
+
 melt<-melt(subset(CYT, CYT$Stim=="PMA"), 
            id.vars=c("TB","SM"), 
            measure.vars=c("TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
@@ -146,21 +153,28 @@ th_groups <- as_labeller(c("TH1.Freq" = "TH1",
 cyt<-filter_hc(melt)
 a<-baseplot(cyt, "SM", "value", healthy.cols)+
     facet_wrap(~variable, ncol=4, labeller=th_groups)+
-    labs(y="(%) CD4+ T cells")+coord_cartesian(ylim=c(0,45))
+    labs(y="(%) Total CD4+ T cells")+coord_cartesian(ylim=c(0,45))+
+    labs(title="Healthy Controls")
 
 cyt<-filter_ltbi(melt)
 b<-baseplot(cyt, "SM", "value", ltbi.cols)+
     facet_wrap(~variable, ncol=4, labeller=th_groups)+
-    coord_cartesian(ylim=c(0,45))
+    coord_cartesian(ylim=c(0,45))+
+    labs(title="LTBI")
 
 cyt<-filter_tb(melt)
 c<-baseplot(cyt, "SM", "value", tb.cols)+
     facet_wrap(~variable, ncol=4, labeller=th_groups)+
-    coord_cartesian(ylim=c(0,45))
+    coord_cartesian(ylim=c(0,45))+
+    labs(title="TB")
 
-cowplot::plot_grid(a, b, c, ncol=3)
+first_row = cowplot::plot_grid(NULL, NULL, labels = c('A', 'B'), nrow=1, label_size = 20)
+second_row = cowplot::plot_grid(one, two, labels = c('C', 'D'), nrow=1, label_size = 20)
+third_row = cowplot::plot_grid(a, b, c, nrow=1, labels=c('E'), label_size = 20)
+figure2 = cowplot::plot_grid(first_row, second_row, third_row, ncol=1, rel_heights = c(1,2,2))
 ```
 
+#Figure 3
 ####Generic TH1 and TH2 cytokine producing cells are stratified by lineage-specific transcription factors, and CCR4
 Amongst TH1 cytokine producing CD4+ T cells, moderate frequencies express the transcription factor T-bet while very low frequencies express GATA3. In contrast, amongst TH2 cytokine producing CD4+ T cells, low frequencies express T-bet while high frequencies express GATA3. Similarly high frequencies of TH2 cytokine producing cells express CCR4 compared to TH1 cytokine producing cells. Both TH1 and TH2 cells have equivalent moderate frequencies of CXCR3 expressing cells. There are no differences by S. mansoni status.  
 
@@ -179,7 +193,8 @@ test$variable<-factor(test$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4")
 a<-booleanplot(test, "SM","value", healthy.cols)+
     facet_grid(variable~subset, scales="free")+
     theme(panel.border = element_rect(fill = NA, colour = "black"))+
-    labs(y="(%) Cytokine+ CD4+ T cells")
+    labs(y="(%) Cytokine+ CD4+ T cells",
+         title="HC")
 
 
 phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PMA"))
@@ -195,7 +210,9 @@ test$variable<-factor(test$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4")
 
 b<-booleanplot(test, "SM","value", ltbi.cols)+
     facet_grid(variable~subset, scales="free")+
-    theme(panel.border = element_rect(fill = NA, colour = "black"))
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="(%) Cytokine+ CD4+ T cells",
+         title="LTBI")
 
 phen<-filter_tb(subset(PHEN, PHEN$Stim=="PMA"))
 test<-melt(phen, id.vars=c("TB", "SM"), 
@@ -210,34 +227,40 @@ test$variable<-factor(test$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4")
 
 c<-booleanplot(test, "SM","value", tb.cols)+
     facet_grid(variable~subset, scales="free")+
-    theme(panel.border = element_rect(fill = NA, colour = "black"))
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="(%) Cytokine+ CD4+ T cells",
+         title="TB")
 
-cowplot::plot_grid(a, b, c, ncol=3)
+first_row = cowplot::plot_grid(NULL, labels = c('A'), nrow=1, label_size = 20)
+second_row = cowplot::plot_grid(a, b, c, nrow=1, labels=c('B', 'C', 'D'), label_size = 20)
+figure3 <- cowplot::plot_grid(first_row, second_row, ncol=1, rel_heights = c(1,4))
 ```
 
 #LTBI
-
+#Figure 4
 ####LTBI individuals coinfected with S. mansoni have higher Mtb peptide-specific cytokine production, specifically due to higher production of IFNγ
 ```{r, narrow down ltbi data}
 cyt<-filter_ltbi(subset(CYT, CYT$Stim=="PEP"))
 phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+
+kable(table(cyt$disease), caption="Pep cytokine")
+kable(table(phen$disease[!is.na(phen$TH1_MFI_CCR4)]), caption="Pep phenotype")
 ```
 
 ```{r cytokine, fig.width=15, fig.height=8}
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
 a<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y = (.95*.15))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y = (.95*.15))+
     coord_cartesian(ylim=c(0,.15))+
     labs(y="(%) CD4+ T cells")
 
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
 b<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y = (.95*.02))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y = (.95*.02))+
     coord_cartesian(ylim=c(0,.02))
 
-cowplot::plot_grid(a, b)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status
@@ -246,24 +269,34 @@ melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("ifng_T-bet", "
 melt$variable<-gsub("ifng_", "", melt$variable)
 melt$variable <- factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4"))
 
-a<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", ltbi.cols)+    
+tf<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*70))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*70))+
     coord_cartesian(ylim=c(0,70))+
     labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
 
-b<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", ltbi.cols)+    
+sm<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*100))+
-    coord_cartesian(ylim=c(0,100))
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*100))+
+    coord_cartesian(ylim=c(0,100))+
+    labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
 
-cowplot::plot_grid(a,b,ncol=2)
+
+first_row = cowplot::plot_grid(NULL, labels = c('A'), nrow=1, label_size = 20)
+second_row = cowplot::plot_grid(a, b, nrow=1, labels=c('B', 'C'), label_size = 20)
+third_row = cowplot::plot_grid(tf, sm, nrow=1, labels=c('D', 'E'), label_size = 20)
+figure4 <- cowplot::plot_grid(first_row, second_row, third_row, ncol=1, rel_heights = c(1,2,2))
 ```
 
 #TB 
+#Figure 5
 ```{r, narrow down tb data}
 cyt<-filter_tb(subset(CYT, CYT$Stim=="PEP"))
 phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+
+
+kable(table(cyt$disease), caption="Pep cytokine")
+kable(table(phen$disease[!is.na(phen$TH1_MFI_CCR4)]), caption="Pep phenotype")
 ```
 
 
@@ -274,17 +307,15 @@ phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
 a<-baseplot(melt, "disease", "value", tb.cols)+    
     facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.95*.15))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.95*.15))+
     coord_cartesian(ylim=c(0,.15))+
     labs(y="(%) CD4+ T cells")
 
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
 b<-baseplot(melt, "disease", "value", tb.cols)+ 
     facet_wrap(~variable, labeller = cyt_groups)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.95*.02))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.95*.02))+
     coord_cartesian(ylim=c(0,.02))
-
-cowplot::plot_grid(a, b)
 ```
 
 ####Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers. There are numerous phenotypic differences amongst Mtb-specific TH1 cytokine producing cells betweeen SM- and SM+ groups. While T-bet is still the dominant transcription factor expressed in both groups, most differences are due to higher frequencies of GATA3 and CCR4 co-expressing cells.
@@ -294,62 +325,63 @@ melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("TH1_T-bet", "T
 melt$variable<-gsub("TH1_", "", melt$variable)
 melt$variable<-factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4"))
 
-a<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", tb.cols)+    
+tf<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", tb.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.y=(.98*80))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*80))+
     coord_cartesian(ylim=c(0,80))+
     labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
 
-b<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", tb.cols)+    
+sm<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", tb.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.y=(.98*80))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*80))+
     coord_cartesian(ylim=c(0,80))
 
-cowplot::plot_grid(a, b, ncol=2)
-```
-
-```{r receptor on gata3, fig.width=7.5, fig.height=8}
 phen$TH1_GATA4notCCR4<-rowSums(phen[,grep("TH1_._g_._x", names(phen))])
 melt<-melt(phen, id.vars=c("TB","SM", "disease"), measure.vars=c("TH1_GATA3CCR4", "TH1_GATA4notCCR4"))
 
 groups <- as_labeller(c("TH1_GATA3CCR4" = "GATA3+CCR4+", 
                     "TH1_GATA4notCCR4" = "GATA3+CCR4-"))
 
-baseplot(melt, "SM", "value", tb.cols)+    
+both<-baseplot(melt, "SM", "value", tb.cols)+    
     facet_wrap(~variable, labeller = groups)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3)+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3)+
     labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
+
+tbcyt<-cowplot::plot_grid(NULL, a, b, nrow=1, labels=c("A","B", "C"), label_size = 20, rel_widths = c(1.5,1,1))
+tbphen<-cowplot::plot_grid(tf, sm, both, nrow=1, labels=c("D","E","F"), label_size = 20)
+figure5<-cowplot::plot_grid(tbcyt, tbphen, nrow=2, rel_heights = c(2,3))
 ```
 
-
 #Proliferation Assay
+#Figure 6
 ##All Groups Responses to SEB
 ```{r}
-og<-plot_filter(subset(OG, OG$Stim=="SEB"))
-ogphen<-plot_filter(subset(OGPHEN, OGPHEN$Stim=="SEB"))
+og<-plot_filter(dplyr::filter(OG, Stim=="SEB"))
+ogphen<-plot_filter(dplyr::filter(OGPHEN, Stim=="SEB"))
+
+kable(table(og$disease), caption="Total Proliferation")
+kable(table(ogphen$disease[!is.na(ogphen$IFNg)]), caption="SEB phenotype")
 ```
 
 ```{r, proliferation and total cyt, fig.width=15, fig.height=8}
-groups <- as_labeller(c("OG_freq" = "Proliferation","IFNg_freq" = "IFNγ", 
-                    "TNFa_freq" = "TNFα", "IL4_freq" = "IL-4"))
+groups <- as_labeller(c("OG" = "Proliferation","IFNg" = "IFNγ", 
+                    "TNFa" = "TNFα", "IL4" = "IL-4"))
 
-part1<-melt(og, id.vars=c("TB","SM", "disease"), measure.vars="OG_freq")
+part1<-melt(og, id.vars=c("TB","SM", "disease"), measure.vars="OG")
 og<-allplot(part1, "TB", "value", all.cols)+
     facet_wrap(~variable, scales="free", labeller = groups)+
     labs(y="(%) Total CD4+ T cells")
 
-melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg_freq", "TNFa_freq"))
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
 
 one<-allplot(melt, "TB", "value", all.cols)+    
     facet_wrap(~variable, labeller = groups, ncol=2)+
     labs(y="(%) Proliferating CD4+ T cells")
 
-melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4_freq"))
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4"))
 
 two<-allplot(melt, "TB", "value", all.cols)+    
     facet_wrap(~variable, labeller = groups)
-
-cowplot::plot_grid(og, one, two, ncol=3, rel_widths = c(1.2,2,1))
 ```
 
 ```{r, marker on proliferating, fig.width=15, fig.height=8}
@@ -362,39 +394,45 @@ melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("CXCR3", "CCR
 
 sm<-allplot(melt, "TB", "value", all.cols) 
 
-cowplot::plot_grid(tf, sm)
+first_row = cowplot::plot_grid(NULL, labels = c('A', 'B'), nrow=1, label_size = 20)
+second_row = cowplot::plot_grid(og, one, two, nrow=1, rel_widths = c(1.2,2,1), labels=c("B", "C","D"), label_size = 20)
+third_row = cowplot::plot_grid(tf, sm, labels=c("E", "F"), nrow=1, label_size = 20)
+figure6<-cowplot::plot_grid(first_row, second_row, third_row, nrow=3)
 ```
 
+#Figure 7
 ##Mtb-Specific Responses in LTBI
 ```{r}
-og<-filter_ltbi(subset(OG, OG$Stim=="PEP"))
-ogphen<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
-oggt<-filter_ltbi(subset(OG.GT, OG.GT$Stim=="PEP"))
-ogth1<-filter_ltbi(subset(OG.th1, OG.GT$Stim=="PEP"))
+og<-filter_ltbi(dplyr::filter(OG, Stim=="PEP"))
+ogphen<-filter_ltbi(dplyr::filter(OGPHEN, Stim=="PEP"))
+oggt<-filter_ltbi(dplyr::filter(OG.GT, Stim=="PEP"))
+ogth1<-filter_ltbi(dplyr::filter(OG.th1, Stim=="PEP"))
+
+
+kable(table(og$disease), caption="PEP Proliferation")
+kable(table(ogphen$disease[!is.na(ogphen$IFNg)]), caption="PEP phenotype")
 ```
 
 
 ####There are no differences in Mtb-specific proliferation betweeen SM+ and SM- QF+ individuals. The cytokine production from expanded Mtb-specific CD4+ T cells only differs with regards to IFNγ IL-4 co-production, however the frequency of these cells is incredibly low. The dominant cytokine subgroup is still cells that co-produce IFNγ and TNFα. 
 ```{r og and cyt, fig.width=15, fig.height=8}
-groups <- as_labeller(c("OG_freq" = "Proliferation","IFNg_freq" = "IFNγ", 
-                    "TNFa_freq" = "TNFα", "IL4_freq" = "IL-4"))
+groups <- as_labeller(c("OG" = "Proliferation","IFNg" = "IFNγ", 
+                    "TNFa" = "TNFα", "IL4" = "IL-4"))
 
-melt<-melt(og, id.vars=c("TB","SM", "disease"), measure.vars="OG_freq")
+melt<-melt(og, id.vars=c("TB","SM", "disease"), measure.vars="OG")
 og<-baseplot(melt, "TB", "value", ltbi.cols)+
     facet_wrap(~variable, scales="free", labeller = groups)+
     coord_cartesian(ylim=c(0,3))+
     labs(y="(%) Total CD4+ T cells")
 
-melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg_freq", "TNFa_freq"))
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
 one<-baseplot(melt, "TB", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = groups, ncol=2)+
     labs(y="(%) Proliferating CD4+ T cells")
 
-melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4_freq"))
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4"))
 two<-baseplot(melt, "TB", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = groups)
-
-cowplot::plot_grid(og, one, two, ncol=3, rel_widths = c(1.2,2,1))
 ```
 
 ####Similar to the overnight assay, expanded Mtb-specific TH1 cytokine producing cells express both TH1 and TH2 lineage-specific markers, however this does not differ by S. mansoni status. 
@@ -405,18 +443,22 @@ cowplot::plot_grid(og, one, two, ncol=3, rel_widths = c(1.2,2,1))
 melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3", "CXCR3", "CCR4"))
 melt$variable<-factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4"))
 
-a<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", ltbi.cols)+    
+tf<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*100))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*100))+
     coord_cartesian(ylim=c(0,100))+
     labs(y="(%) Proliferating Mtb-Specific cells")
 
-b<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", ltbi.cols)+    
+sm<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*100))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*100))+
     coord_cartesian(ylim=c(0,100))
 
-cowplot::plot_grid(a,b,ncol=2)
+
+first_row = cowplot::plot_grid(NULL, labels = c('A'), nrow=1, label_size = 20)
+second_row = cowplot::plot_grid(og, one, two, nrow=1, rel_widths = c(1.2,2,1), labels=c("B", "C","D"), label_size = 20)
+third_row = cowplot::plot_grid(tf, sm, labels=c("E", "F"), nrow=1, label_size = 20)
+figure7<-cowplot::plot_grid(first_row, second_row, third_row, nrow=3)
 ```
 
 ###On TH1 proliferating cells
@@ -426,16 +468,16 @@ melt$variable<-factor(melt$variable, levels=c("T-bet", "GATA3", "CXCR3", "CCR4")
 
 a<-baseplot(melt[melt$variable %in% c("T-bet","GATA3"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*100))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*100))+
     coord_cartesian(ylim=c(0,100))+
     labs(y="(%) Proliferating Mtb-Specific cells")
 
 b<-baseplot(melt[melt$variable %in% c("CXCR3", "CCR4"),], "SM", "value", ltbi.cols)+    
     facet_wrap(~variable)+
-    stat_compare_means(method="wilcox.test" , label="p.format", size=6, label.x=1.3, label.y=(.98*100))+
+    stat_compare_means(method="wilcox.test" , label="p.format", size=4, label.x=1.3, label.y=(.98*100))+
     coord_cartesian(ylim=c(0,100))
 
-cowplot::plot_grid(a,b,ncol=2)
+ogth1<-cowplot::plot_grid(a,b,ncol=2)
 ```
 
 #Luminex Data
@@ -461,7 +503,7 @@ b<-baseplot(melt, "SM", "value", ltbi.cols)+facet_wrap(~variable, scales="free")
     labs(y="pg/mL")+
     coord_cartesian(ylim=c(0,40))
 
-cowplot::plot_grid(a,b, ncol=1, align = "v")
+lumplot<-cowplot::plot_grid(a,b, NULL, ncol=1, align = "v", labels=c("A","A", "B"), label_size = 20)
 ```
 
 
@@ -479,8 +521,8 @@ stims<-factor(lum$Stim)
 worms<-factor(lum$SM)
 a<-ggplot(pcas, aes(x=pcas[,1], y=pcas[,2]))+geom_point(aes(col=worms))+labs(y="PCA2", x="PCA1")
 
-neg <- cor(lum[lum$SM=="SM-",3:11])
-order <- corrMatOrder(neg, order = "hclust", hclust.method="centroid")
+neg <- cor(lum[lum$SM=="SM-",3:11], method="spearman")
+order <- corrMatOrder(neg, order = "hclust")
 order.neg <- neg[order, order]
 res1 <- cor.mtest(lum[lum$SM=="SM-",3:11], conf.level = .95)
 pvals <- res1$p[order, order]
@@ -488,7 +530,7 @@ corrplot(order.neg, method = "circle", insig = "label_sig", tl.col = "black",
          p.mat = pvals, sig.level = c(.001, .01, .05), pch.cex = 2, pch.col = "white",
          type="upper")
 
-pos <- cor(lum[lum$SM=="SM+",3:11])
+pos <- cor(lum[lum$SM=="SM+",3:11], method="spearman")
 order.pos <- pos[order, order]
 res1 <- cor.mtest(lum[lum$SM=="SM+",3:11], conf.level = .95)
 pvals <- res1$p[order, order]
@@ -496,7 +538,18 @@ corrplot(order.pos, method = "circle", insig = "label_sig", tl.col = "black",
          p.mat = pvals, sig.level = c(.001, .01, .05), pch.cex = 2, pch.col = "white",
          type="upper")
 ```
-
+#Exporting Data
+```{r}
+setwd("/Users/tarynam/Desktop/Manuscript1")
+cowplot::save_plot("figure1.png", figure1, base_height=8, base_width=16) #Figure 1
+cowplot::save_plot("figure2.png", figure2, base_height=14, base_width=16) #Figure 2
+cowplot::save_plot("figure3.png", figure3, base_height=14, base_width=16)
+cowplot::save_plot("figure4.png", figure4, base_height=14, base_width=16)
+cowplot::save_plot("figure5.png", figure5, base_height=14, base_width=16)
+cowplot::save_plot("figure6.png", figure6, base_height=16, base_width=16)
+cowplot::save_plot("figure7.png", figure7, base_height=16, base_width=16)
+cowplot::save_plot("figure8.png", lumplot, base_height=32, base_width=16)
+```
 
 ##ICS Supplementary
 ```{r}
@@ -523,6 +576,7 @@ test$variable<-factor(test$variable, levels=c(
 "G_x_x_T" , "G_x_x_x","x_x_x_T",
 "x_4_13_x","x_4_x_x", "x_x_13_x"
 ))
+
 
 G   <-c("+", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-")
 il4 <-c("+", "+", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "+", "+", "-")
@@ -556,7 +610,7 @@ th2<-booleanplot2(test[test$th=="TH2",], "variable", "value", all.cols)+facet_gr
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
     coord_cartesian(ylim=c(0,3))
 
-cowplot::plot_grid(th1.2, th1, th2, ncol=3, rel_widths = c(8,3.5,3.5))
+supp1<-cowplot::plot_grid(th1.2, th1, th2, ncol=3, rel_widths = c(8,3.5,3.5))
 ```
 
 ###Boolean Phenotypes
@@ -590,8 +644,27 @@ G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
 c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
 c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
 
+
 labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
 breaks <- levels(test$variable)
+
+df<-data.frame(cbind(levels(test$variable),T,G,c3,c4))
+dfm<-melt(df, measure.vars=c("T", "G","c3","c4"))
+dfm$variable<-factor(dfm$variable, levels=c("c4","c3","G", "T"))
+
+data_table <- ggplot(dfm, aes(x = V1, y = variable, label = format(value))) +
+    geom_text(size = 10) + 
+    theme_bw() + 
+    labs(x="",y="")+
+    theme(strip.text.x = element_blank(), strip.background.x = element_blank())+
+    scale_y_discrete(labels=c("T-bet", "GATA3", "CXCR3", "CCR4"))+
+    theme(axis.text.y = element_text(size=20))+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          axis.title = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks = element_blank())
 
 test$tf<-NA
 test$tf[grep("x_g", test$variable)]<-"GATA3"
@@ -601,11 +674,11 @@ test$tf[grep("x_x_._.", test$variable)]<-"None"
 test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
 
 
-booleanplot2(test, "variable", "value", all.cols)+
+supp2a<-booleanplot2(test, "variable", "value", all.cols)+
     facet_grid(TB~tf, scales="free_x")+
     scale_x_discrete(labels = labels, breaks=breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 40)+
-    coord_cartesian(ylim=c(0,45))
+    coord_cartesian(ylim=c(0,65))
 
 ```
 ###TH2  
@@ -648,12 +721,15 @@ test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
 test$tf[grep("x_x_._.", test$variable)]<-"None"
 test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
 
-booleanplot2(test, "variable", "value", all.cols)+
+supp2b<-booleanplot2(test, "variable", "value", all.cols)+
     facet_grid(TB~tf, scales="free_x")+
     scale_x_discrete(labels = labels, breaks=breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 40)+
-    coord_cartesian(ylim=c(0,45))
+    coord_cartesian(ylim=c(0,65))
+```
 
+```{r}
+supp2<-cowplot::plot_grid(supp2a, supp2b, nrow=2, labels=c("A", "B"))
 ```
 
 ###Peptide-Specific Cytokine Production  
@@ -674,12 +750,11 @@ c<-baseplot(cyt, "SM", "value", tb.cols)+
     facet_wrap(~variable, ncol=4, labeller=th_groups)+
     coord_cartesian(ylim=c(0,.2))
 
-cowplot::plot_grid(b, c, ncol=3)
+supp3<-cowplot::plot_grid(b, c, ncol=3)
 ```
 
 ```{r, fig.width=16, fig.height=8}
 cyt<-plot_filter(CYT[CYT$Stim=="PEP",])
-cyt<-filter(cyt, TB!="HC")
 test<-melt(cyt, id.vars=c("TB", "SM", "disease"), measure.vars = grep("._._._.|._._.._.", names(cyt)))
 test<-test[-grep("tbet|gata3|x_x_x_x", test$variable),]
 test$variable<-factor(test$variable, levels=c(
@@ -689,10 +764,10 @@ test$variable<-factor(test$variable, levels=c(
 ))
 
 
-G   <-c("+", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-")
-il4 <-c("+", "+", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "+", "+", "-")
-il13<-c("+", "-", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "+", "-", "+")
-T   <-c("+", "+", "+", "-", "+", "-", "-", "+", "+", "+", "-", "+", "-", "-", "-")
+G   <-c("IFNγ +", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-")
+il4 <-c("IL-4 +", "+", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "+", "+", "-")
+il13<-c("IL-13 +", "-", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "+", "-", "+")
+T   <-c("TNFα +", "+", "+", "-", "+", "-", "-", "+", "+", "+", "-", "+", "-", "-", "-")
 
 labels <- paste0(G, "\n", T, "\n", il4, "\n", il13)
 breaks <- levels(test$variable)
@@ -702,12 +777,17 @@ test$th[grep("._x_x_.", test$variable)]<-"TH1"
 test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
 test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
 
-booleanplot2(test, "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+supp4a<-booleanplot2(test[test$TB=="LTBI",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
     scale_x_discrete(labels = labels, breaks=breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
-    coord_cartesian(ylim=c(0,.2))+
-    labs(y="(%) CD4+ T cells",
-         title="PMA")
+    coord_cartesian(ylim=c(0,.16))+
+    labs(y="(%) CD4+ T cells")
+
+supp5a<-booleanplot2(test[test$TB=="TB",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
+    coord_cartesian(ylim=c(0,.15))+
+    labs(y="(%) CD4+ T cells")
 ```
 
 
@@ -751,12 +831,10 @@ test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
 test$tf[grep("x_x_._.", test$variable)]<-"None"
 test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
 
-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x",ncol=4)+
+supp4b<-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x",ncol=4)+
     scale_x_discrete(labels = labels, breaks=breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10)+
-    labs(y="(%) Mtb-Specific TH1 Cytokine+ cells",
-         title="ICS Assay")
-
+    labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
 ```
 
 ```{r, fig.width=15, fig.height=8}
@@ -799,12 +877,136 @@ test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
 test$tf[grep("x_x_._.", test$variable)]<-"None"
 test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
 
-booleanplot(test, "variable", "value", tb.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
+supp5b<-booleanplot(test, "variable", "value", tb.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
     scale_x_discrete(labels = labels, breaks=breaks)+
     labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")+
     coord_cartesian(ylim=c(0,55))+
     stat_compare_means(method="wilcox.test",label="p.signif", hide.ns=TRUE, label.y=50, size=10)
+```
 
+###Comparing Mtb-specific TH1 cells to total CD4 T cells in peptide stim  
+```{r, fig.width=12, fig.height=6}
+total<-filter_ltbi(subset(CD4, CD4$Stim=="UN"))
+total$cell<-"Total"
+phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+names<-c("Donor", "TB", "SM", "Stim", "disease", names(phen)[grep("TH1_", names(phen))])
+mtb_th1<-select(phen, names)
+names(mtb_th1)<-gsub("TH1_", "", names(mtb_th1))
+mtb_th1$cell<-"Mtb-Specific"
+long<-rbindlist(list(total, mtb_th1), fill=TRUE)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$cell<-factor(melt$cell, levels=c("Total", "Mtb-Specific"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- Mtb-Specific","SM+ Total", "SM+ Mtb-Specific"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("Total", "Mtb", "Total", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb-Specific", "SM- Total"),c("SM+ Mtb-Specific", "SM+ Total")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+  
+###Comparing Mtb-specific TH1 cells to PMA TH1 cells  
+```{r, fig.width=12, fig.height=6}
+pma<-filter_ltbi(subset(PHEN, PHEN$Stim=="PMA"))
+pma$cell<-"PMA"
+pep<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+pep$cell<-"Mtb"
+long<-rbindlist(list(pma, pep), fill=TRUE)
+names<-c("Donor", "TB", "SM", "Stim", "disease", "cell", names(long)[grep("TH1_", names(long))])
+long<-select(long, names)
+names(long)<-gsub("TH1_", "", names(long))
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- PMA", "SM- Mtb","SM+ PMA", "SM+ Mtb"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("PMA", "Mtb", "PMA", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb", "SM- PMA"),c("SM+ Mtb", "SM+ PMA")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+  
+###Comparing Mtb-specific TH1 cells to total CD4 T cells in peptide stim  
+```{r, fig.width=12, fig.height=6}
+total<-filter_tb(subset(CD4, CD4$Stim=="UN"))
+total$cell<-"Total"
+phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+names<-c("Donor", "TB", "SM", "Stim", "disease", names(phen)[grep("TH1_", names(phen))])
+mtb_th1<-select(phen, names)
+names(mtb_th1)<-gsub("TH1_", "", names(mtb_th1))
+mtb_th1$cell<-"Mtb-Specific"
+long<-rbindlist(list(total, mtb_th1), fill=TRUE)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$cell<-factor(melt$cell, levels=c("Total", "Mtb-Specific"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- Mtb-Specific","SM+ Total", "SM+ Mtb-Specific"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = tb.cols)+
+    scale_x_discrete(labels=c("Total", "Mtb", "Total", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb-Specific", "SM- Total"),c("SM+ Mtb-Specific", "SM+ Total")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+
+```
+  
+###Comparing Mtb-specific TH1 cells to PMA TH1 cells  
+```{r, fig.width=12, fig.height=6}
+pma<-filter_tb(subset(PHEN, PHEN$Stim=="PMA"))
+pma$cell<-"PMA"
+pep<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+pep$cell<-"Mtb"
+long<-rbindlist(list(pma, pep), fill=TRUE)
+names<-c("Donor", "TB", "SM", "Stim", "disease", "cell", names(long)[grep("TH1_", names(long))])
+long<-select(long, names)
+names(long)<-gsub("TH1_", "", names(long))
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- PMA", "SM- Mtb","SM+ PMA", "SM+ Mtb"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = tb.cols)+
+    scale_x_discrete(labels=c("PMA", "Mtb", "PMA", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb", "SM- PMA"),c("SM+ Mtb", "SM+ PMA")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+
+
+```{r}
+supp4<-cowplot::plot_grid(supp4a, supp4b, nrow=2, labels=c("A", "B"))
+supp5<-cowplot::plot_grid(supp5a, supp5b, nrow=2, labels=c("A", "B"))
 ```
 
 ##Proliferation Supplementary
@@ -839,7 +1041,7 @@ il4 <- c("-", "-", "-", "+", "+", "+", "+")
 labels <- paste0(T, "\n", G, "\n", il4)
 breaks <- levels(test$variable)
 
-booleanplot(test, "variable", "value", ltbi.cols)+
+supp6a<-booleanplot(test, "variable", "value", ltbi.cols)+
     scale_x_discrete(labels = labels, breaks=breaks)+
     facet_grid(~group, scales="free_x", space="free_x")+
     labs(y="(%) Proliferating CD4+ T cells")
@@ -883,11 +1085,44 @@ test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
 test$tf[grep("x_x_._.", test$variable)]<-"None"
 test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
 
-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
+supp6b<-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
     scale_x_discrete(labels = labels, breaks=breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=6)+
     labs(y="(%) Proliferating Mtb-Specific cells")
 ```
+
+```{r}
+supp6<-cowplot::plot_grid(supp6a, supp6b, nrow=2, labels=c("A", "B"), rel_widths = c(3,4))
+```
+
+  
+###Comparing Mtb-specific TH1 cells to PMA TH1 cells  
+```{r, fig.width=12, fig.height=6}
+un<-filter_ltbi(subset(OG, OG$Stim=="UN"))
+un$cell<-"total"
+seb<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="SEB"))
+seb$cell<-"seb"
+long<-rbindlist(list(un, seb), fill=TRUE)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- PMA", "SM- Mtb","SM+ PMA", "SM+ Mtb"))
+
+ggplot(long, aes(x=cell, y=long[,"T-bet"], color=disease))+
+    geom_point(size=3, alpha=0.5)+geom_line(aes(group=Donor))+
+    facet_wrap(~TB, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("PMA", "Mtb", "PMA", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb", "SM- PMA"),c("SM+ Mtb", "SM+ PMA")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+  
+
 
 ```{r}
 lum_x<-lum[lum$SM=="SM-",]
@@ -908,4 +1143,20 @@ df<-as.matrix(lum[,3:11])
 #heatmap(t(df_sm), Rowv=as.dendrogram(hc_sm))
 #heatmap(t(df), Rowv=as.dendrogram(hc_sm))
 ```
+
+
+#Exporting Data
+```{r}
+setwd("/Users/tarynam/Desktop/Manuscript1")
+cowplot::save_plot("supp1.png", supp1, base_height=14, base_width=16)
+cowplot::save_plot("supp2.png", supp2, base_height=28, base_width=16)
+cowplot::save_plot("supp3.png", supp3, base_height=7, base_width=16)
+cowplot::save_plot("supp4.png", supp4, base_height=14, base_width=16)
+cowplot::save_plot("supp5.png", supp5, base_height=14, base_width=16)
+cowplot::save_plot("supp6.png", supp6, base_height=14, base_width=16)
+```
+
+
+
+
 
