@@ -44,8 +44,8 @@ went through og_TNF seb and there are more tbet+gata3+ccr4+ cells
 ```{r HC}
 library(dplyr)
 library(knitr)
-DF<-mutate_hc(subset(CD4, CD4$Stim=="SEB"))
-plot_hc(DF, "SM","OG_freq")
+DF<-mutate_hc(dplyr::filter(CD4, Stim=="SEB"))
+plot_hc(DF, "SM","OG")
 ```
 
 
@@ -53,7 +53,7 @@ plot_hc(DF, "SM","OG_freq")
 ```{r pep total}
 library(dplyr)
 library(knitr)
-DF<-subset(CD4, CD4$Stim=="PEP")
+DF<-dplyr::filter(CD4, Stim=="PEP")
 colnames<-numeric_only(DF)
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
@@ -64,9 +64,9 @@ for(col in colnames){
 ```
 
 ```{r}
-test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+test<-mutate_TB(filter(DF, !is.na(OG)))
 kable(xtabs(~TB+SM, test))
-plot_2(test, "disease", "OG_freq")
+plot_2(test, "disease", "OG")
 ```
 
 
@@ -168,7 +168,7 @@ write.csv(TNF, "/Applications/Old Computer/Day Lab/Flow-Data/clean/OG_CD4_OG.TNF
 ```{r SEB}
 library(dplyr)
 library(knitr)
-DF<-subset(OG, OG$Stim=="SEB")
+DF<-dplyr::filter(OG, Stim=="SEB")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -181,7 +181,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -191,7 +191,7 @@ for(col in colnames){
 ```
 
 ```{r}
-test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+test<-mutate_TB(filter(DF, !is.na(OG)))
 kable(xtabs(~TB+SM, test))
 ```
 
@@ -231,7 +231,7 @@ ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
 ```{r PEP}
 library(dplyr)
 library(knitr)
-DF<-subset(OG, OG$Stim=="PEP")
+DF<-dplyr::filter(OG, Stim=="PEP")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -244,7 +244,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -254,7 +254,7 @@ for(col in colnames){
 ```
 
 ```{r}
-test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+test<-mutate_TB(filter(DF, !is.na(OG)))
 kable(xtabs(~TB+SM, test))
 ```
 
@@ -298,7 +298,7 @@ plot_2(test, "disease", "x_G_4")
 ```{r WCL}
 library(dplyr)
 library(knitr)
-DF<-subset(OG, OG$Stim=="WCL")
+DF<-dplyr::filter(OG, Stim=="WCL")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -311,7 +311,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -321,7 +321,7 @@ for(col in colnames){
 ```
 
 ```{r}
-test<-mutate_TB(filter(DF, !is.na(OG_freq)))
+test<-mutate_TB(filter(DF, !is.na(OG)))
 kable(xtabs(~TB+SM, test))
 ```
 
@@ -359,7 +359,7 @@ ggplot(test2, aes(x=variable, y=value, fill=TB, alpha=SM))+
 ```
 
 ```{r}
-plot_2(test, "disease", "IL4_freq")
+plot_2(test, "disease", "IL4")
 plot_2(test, "disease", "T_x_4")
 plot_2(test, "disease", "T_x_x")
 plot_2(test, "disease", "x_G_x")
@@ -373,7 +373,7 @@ plot_2(test, "disease", "x_x_x_4")
 ```{r PEP th1}
 library(dplyr)
 library(knitr)
-DF<-subset(TH1, TH1$Stim=="PEP")
+DF<-dplyr::filter(TH1, Stim=="PEP")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -386,7 +386,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -401,7 +401,7 @@ for(col in colnames){
 ```{r PEP tnfa}
 library(dplyr)
 library(knitr)
-DF<-subset(TNF, TNF$Stim=="PEP")
+DF<-dplyr::filter(TNF, Stim=="PEP")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -414,7 +414,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -430,7 +430,7 @@ for(col in colnames){
 ```{r PEP gt}
 library(dplyr)
 library(knitr)
-DF<-subset(GT, GT$Stim=="PEP")
+DF<-dplyr::filter(GT, GT$Stim=="PEP")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -443,7 +443,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){
@@ -457,7 +457,7 @@ for(col in colnames){
 ```{r PEP IFNg}
 library(dplyr)
 library(knitr)
-DF<-subset(IFNg, IFNg$Stim=="PEP")
+DF<-dplyr::filter(IFNg, Stim=="PEP")
 #split by both TB and SM so you have a list of 6 data frames- each of which is a group of interest
 x<-split(DF, list(DF$TB, DF$SM))
 #for each dataframe in the list, return the column names of the columns where the sum of the number of rows that do not have missing data is more than 0. It's a weird double negative. But basically makes a list of the columns that have sufficient data.
@@ -470,7 +470,7 @@ d<-unlist(y[4])
 #then find the intersection of all the lists. Aka which column names have sufficient data in all 4 TB-SM groups
 test<-Reduce(intersect, list(a,b,c,d))
 #this will also include metadata so we remove those column names and can phenotype using the standard pvals function from the beginning
-colnames<-c(test[1:31], test[38:49])
+colnames<-c(test[1:31], test[38:45])
 for(col in colnames){
     y<-pvals_4_loose(DF, col)
     if(dim(y)[1]>0){

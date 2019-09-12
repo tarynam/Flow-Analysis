@@ -32,9 +32,10 @@ l<-lapply(l, function(x) clean_ognames(x))
 l<-lapply(l, function(x) remove_samples(x))
 l<-lapply(l, function(x) remove_donors(x))
 l<-lapply(l, function(x) changeTB(x))
+l<-lapply(l, function(x) cleanvariablenames(x))
 
 filenames<-ls(pattern="summary.csv")
-for(i in 1:15){
+for(i in 1:16){
 assign(filenames[i], data.frame(l[i]))}
 ```
 
@@ -42,6 +43,7 @@ assign(filenames[i], data.frame(l[i]))}
 ```{r create new combo variables from exported boolean phenotype}
 l<-lapply(ls(pattern="bulk_summary"), function(x) get(x))
 l<-lapply(l, function(x) sum_boolean(x))
+l<-lapply(l, function(x) sum_boolean2(x))
 filenames<-ls(pattern="bulk_summary")
 for(i in 1:5){
 assign(filenames[i], data.frame(l[i]))}
@@ -49,6 +51,7 @@ assign(filenames[i], data.frame(l[i]))}
 
 l<-lapply(ls(pattern="_OG"), function(x) get(x))
 l<-lapply(l, function(x) sum_boolean(x))
+l<-lapply(l, function(x) sum_boolean2(x))
 filenames<-ls(pattern="_OG")
 for(i in 1:9){
 assign(filenames[i], data.frame(l[i]))}
@@ -56,7 +59,7 @@ assign(filenames[i], data.frame(l[i]))}
 
 ```{r}
 l<-lapply(ls(pattern="bulk_summary"), function(x) get(x))
-l<-lapply(l, function(x) OG_background.subtract(x, "Donor", "Stim", "UN", "OG_freq"))
+l<-lapply(l, function(x) OG_background.subtract(x, "Donor", "Stim", "UN", "OG"))
 filenames<-ls(pattern="bulk_summary")
 for(i in 1:5){
 assign(filenames[i], data.frame(l[i]))}
