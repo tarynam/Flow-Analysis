@@ -590,10 +590,9 @@ names(gata3)<-newnames
 gata3$Sample<-names(x_x_x_x)
 ```
 
-
 ```{r TH1 phenotype}
-TH1<-filter(master, !is.na(IFNg_gate) | !is.na(TNFa_gate) &
-        is.na(IL4_gate) & is.na(IL13_gate))
+TH1<-filter(master, !is.na(IFNg_gate) | !is.na(TNFa_gate))%>%
+    filter(is.na(IL4_gate) & is.na(IL13_gate))
 samples<-split(TH1, TH1$Sample)
 
 t_g_3_4<-sapply(samples, function(g){
@@ -785,8 +784,9 @@ TH1$Sample<-names(x_x_x_x)
 ```
 
 ```{r TH2 phenotype}
-TH2<-filter(master, is.na(IFNg_gate) | is.na(TNFa_gate) &
-        !is.na(IL4_gate) & !is.na(IL13_gate))
+TH2<-filter(master,  !is.na(IL4_gate) | !is.na(IL13_gate))%>%
+    filter(is.na(IFNg_gate) & is.na(TNFa_gate))
+
 samples<-split(TH2, TH2$Sample)
 
 t_g_3_4<-sapply(samples, function(g){
@@ -1385,8 +1385,8 @@ pheno$Sample<-gsub("T8" , "8" , pheno$Sample)
 ```{r}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported/")
 #write.csv(boolean, "CD4_new.csv")
-write.csv(cyt, "CD4_cytokine_new.csv")
-#write.csv(pheno, "CD4_phenotype_new.csv")
+#write.csv(cyt, "CD4_cytokine_new.csv")
+write.csv(pheno, "CD4_phenotype_new.csv")
 ```
 
 

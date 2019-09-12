@@ -6,6 +6,7 @@ output:
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE )
+
 ```
 
 ```{r read in all flowjo data tables}
@@ -175,6 +176,7 @@ CD4_phenotype<-mutate(CD4_phenotype,
       TH1_TbetCCR4=  rowSums(CD4_phenotype[,grep("TH1_t_._._4", names(CD4_phenotype))]),
       TH1_GATA3CXCR3=  rowSums(CD4_phenotype[,grep("TH1_._g_3_.", names(CD4_phenotype))]),
       TH1_GATA3CCR4=  rowSums(CD4_phenotype[,grep("TH1_._g_._4", names(CD4_phenotype))]),
+            TH1_GATA3notCCR4=  rowSums(CD4_phenotype[,grep("TH1_._g_._x", names(CD4_phenotype))]),
       TH2_TbetCXCR3=  rowSums(CD4_phenotype[,grep("TH2_t_._3_.", names(CD4_phenotype))]),
       TH2_TbetCCR4=  rowSums(CD4_phenotype[,grep("TH2_t_._._4", names(CD4_phenotype))]),
       TH2_GATA3CXCR3=  rowSums(CD4_phenotype[,grep("TH2_._g_3_.", names(CD4_phenotype))]),
