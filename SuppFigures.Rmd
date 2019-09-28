@@ -1,0 +1,830 @@
+---
+title: "supplementary figures"
+author: "Taryn McLaughlin"
+date: "9/26/2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, comment=NA, warning=FALSE, echo=FALSE)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(ggpubr)
+library(cowplot)
+library(tidyr)
+library(reshape2)
+library(cowplot)
+library(corrplot)
+library(sjPlot)
+```
+
+```{r plot functions}
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
+
+baseplot<-function(data, xval, yval, colors){
+    ggplot(data, aes(data[,xval], data[,yval], fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    scale_fill_manual(values = colors)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=20),
+          axis.text.x = element_text(size = 16),
+          strip.text = element_text(size = 20))+
+    theme(plot.title = element_text(hjust = 0.5, size=20)) +
+    labs(x="", y="")
+}
+
+booleanplot<-function(data, xval, yval, colors){
+    ggplot(data, aes(data[,xval], data[,yval], fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    scale_fill_manual(values = colors)+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(text = element_text(size=20), 
+          axis.text.x = element_text(size=16), 
+          strip.text = element_text(size = 20))+
+    theme(plot.title = element_text(hjust = 0.5, size=20)) +
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10)+
+    labs(x="", y="")
+}
+
+allplot<-function(data, xval, yval, colors){
+    ggplot(data, aes(data[,xval], data[,yval], fill=disease))+
+    geom_boxplot(size=1, position=position_dodge2(width=0.2, padding = 0.2, preserve = "single"), outlier.shape = NA)+
+    scale_fill_manual(values = colors)+
+    theme_classic()+ 
+    theme(legend.position="none") +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    facet_wrap(~variable)+
+    theme(text = element_text(size=20),
+            axis.text.x = element_text(size = 16),
+            strip.text = element_text(size = 20))+
+    theme(plot.title = element_text(hjust = 0.5, size=20))+
+    labs(x="", y="")
+}
+
+cyt_groups <- as_labeller(c("IFNg" = "IFNγ", 
+                    "TNFa" = "TNFα", "IL4" = "IL-4", "IL13" = "IL-13"))
+
+all_comps<-list(c("HC SM+", "HC SM-"),c("LTBI SM+", "LTBI SM-"), c("TB SM+", "TB SM-")) 
+
+healthy.cols<- c("SM+" = "#1a9850", "SM-" ="#91cf60")
+ltbi.cols<- c("SM+" = "#2166ac", "SM-" = "#85ABD1")
+tb.cols<- c("SM+" = "#b2182b", "SM-"="#E59EA6")
+all.cols<- c("Naive" = "#C8D0D8","HC SM+" = "#1a9850", "HC SM-" ="#91cf60",
+             "LTBI SM+" = "#2166ac", "LTBI SM-" = "#85ABD1",
+             "TB SM+" = "#b2182b", "TB SM-"="#E59EA6")
+```
+
+```{r load data}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean/")
+CD4<-read.csv("ICS_CD4_clean.csv")
+CYT<-read.csv("ICS_CD4_Cytokine_clean.csv")
+PHEN<-read.csv("ICS_CD4_phenotyping_clean_NAs.csv")
+OG<-data.table(read.csv("OG_CD4_bulk_summary_clean.csv"))
+OGPHEN<-read.csv("OG_CD4_OG_summary_clean_NAs.csv")
+OGnope<-read.csv("OG_CD4_noOG_summary_clean.csv")
+OG.IFNg<-read.csv("OG_CD4_OG.IFNg_summary_clean_NAs.csv")
+OG.GT<-read.csv("OG_CD4_OG.GT_summary_clean_NAs.csv")
+OG.th1<-read.csv("OG_CD4_OG.TH1_summary_clean_NAs.csv")
+luminex<-read.csv("/Applications/Old Computer/Day Lab/Luminex/Clean Data/Luminex_combined_background.txt")
+```
+
+
+##ICS Supplementary
+```{r}
+booleanplot2<-function(data, xval, yval, colors){
+    ggplot(data, aes(data[,xval], data[,yval], fill=disease))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    scale_fill_manual(values = colors)+
+    theme_classic()+ 
+    theme(legend.position="none")+
+    theme(text = element_text(size=20), axis.text.x = element_text(size=20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    labs(x="", y="")
+}
+```
+
+###Boolean PMA
+*but I need to make them pretty and I dont' feel like doing that right now*
+```{r boolean pma cyt, fig.width=15, fig.height=12}
+cyt<-plot_filter(CYT[CYT$Stim=="PMA",])
+test<-melt(cyt, id.vars=c("TB", "SM", "disease"), measure.vars = grep("._._._.|._._.._.", names(cyt)))
+test<-test[-grep("tbet|gata3|x_x_x_x", test$variable),]
+test$variable<-factor(test$variable, levels=c(
+"G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", "G_x_13_x","x_4_x_T","x_x_13_T",
+"G_x_x_T" , "G_x_x_x","x_x_x_T",
+"x_4_13_x","x_4_x_x", "x_x_13_x"
+))
+
+
+G   <-c("+", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-")
+il4 <-c("+", "+", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "+", "+", "-")
+il13<-c("+", "-", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "+", "-", "+")
+T   <-c("+", "+", "+", "-", "+", "-", "-", "+", "+", "+", "-", "+", "-", "-", "-")
+
+labels <- paste0(G, "\n", T, "\n", il4, "\n", il13)
+breaks <- levels(test$variable)
+
+test$th<-"TH1/2"
+test$th[grep("._x_x_.", test$variable)]<-"TH1"
+test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
+test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
+
+th1.2<-booleanplot2(test[test$th=="TH1/2",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
+    coord_cartesian(ylim=c(0,3))+
+    theme(strip.text.y = element_blank(), strip.background.y = element_blank())+
+    labs(y="(%) CD4 T cells")
+
+th1<-booleanplot2(test[test$th=="TH1",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
+    coord_cartesian(ylim=c(0,25))+
+    theme(strip.text.y = element_blank(), strip.background.y = element_blank())
+
+
+th2<-booleanplot2(test[test$th=="TH2",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
+    coord_cartesian(ylim=c(0,3))
+
+supp1<-cowplot::plot_grid(th1.2, th1, th2, ncol=3, rel_widths = c(8,3.5,3.5))
+```
+
+###Boolean Phenotypes
+###TH1
+```{r pma th1 boolean, fig.width=20, fig.height=18}
+phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
+
+melt<-melt(phen, id.vars=c("TB", "SM", "disease"), measure.vars = grep("TH1_._._._.", names(phen)))
+test<-filter(melt, variable!="TH1_x_x_x_x")
+test$variable<-gsub("TH1_", "", test$variable)
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+df<-data.frame(cbind(levels(test$variable),T,G,c3,c4))
+dfm<-melt(df, measure.vars=c("T", "G","c3","c4"))
+dfm$variable<-factor(dfm$variable, levels=c("c4","c3","G", "T"))
+
+data_table <- ggplot(dfm, aes(x = V1, y = variable, label = format(value))) +
+    geom_text(size = 10) + 
+    theme_bw() + 
+    labs(x="",y="")+
+    theme(strip.text.x = element_blank(), strip.background.x = element_blank())+
+    scale_y_discrete(labels=c("T-bet", "GATA3", "CXCR3", "CCR4"))+
+    theme(axis.text.y = element_text(size=20))+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          axis.title = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks = element_blank())
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+
+supp2a<-booleanplot2(test, "variable", "value", all.cols)+
+    facet_grid(TB~tf, scales="free_x")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 40)+
+    coord_cartesian(ylim=c(0,65))
+
+```
+###TH2  
+```{r pma th2 boolean, fig.width=20, fig.height=18}
+phen<-plot_filter(subset(PHEN, PHEN$Stim=="PMA"))
+
+melt<-melt(phen, id.vars=c("TB", "SM", "disease"), measure.vars = grep("TH2_._._._.", names(phen)))
+test<-filter(melt, variable!="TH2_x_x_x_x")
+test$variable<-gsub("TH2_", "", test$variable)
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+supp2b<-booleanplot2(test, "variable", "value", all.cols)+
+    facet_grid(TB~tf, scales="free_x")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 40)+
+    coord_cartesian(ylim=c(0,65))
+```
+
+```{r}
+supp2<-cowplot::plot_grid(supp2a, supp2b, nrow=2, labels=c("A", "B"))
+```
+
+###Peptide-Specific Cytokine Production  
+```{r, fig.width=15, fig.height=8}
+melt<-melt(subset(CYT, CYT$Stim=="PEP"), 
+           id.vars=c("TB","SM"), 
+           measure.vars=c("TH1.Freq", "TH1.2.Freq", "TH2.Freq"))
+th_groups <- as_labeller(c("TH1.Freq" = "TH1", 
+                    "TH1.2.Freq" = "TH1/2", "TH2.Freq" = "TH2"))
+
+cyt<-filter_ltbi(melt)
+b<-baseplot(cyt, "SM", "value", ltbi.cols)+
+    facet_wrap(~variable, ncol=4, labeller=th_groups)+
+    coord_cartesian(ylim=c(0,.2))
+
+cyt<-filter_tb(melt)
+c<-baseplot(cyt, "SM", "value", tb.cols)+
+    facet_wrap(~variable, ncol=4, labeller=th_groups)+
+    coord_cartesian(ylim=c(0,.2))
+
+supp3<-cowplot::plot_grid(b, c, ncol=3)
+```
+
+```{r, fig.width=16, fig.height=8}
+cyt<-plot_filter(CYT[CYT$Stim=="PEP",])
+test<-melt(cyt, id.vars=c("TB", "SM", "disease"), measure.vars = grep("._._._.|._._.._.", names(cyt)))
+test<-test[-grep("tbet|gata3|x_x_x_x", test$variable),]
+test$variable<-factor(test$variable, levels=c(
+"G_4_13_T", "G_4_x_T", "G_x_13_T", "G_4_13_x", "x_4_13_T","G_4_x_x", "G_x_13_x","x_4_x_T","x_x_13_T",
+"G_x_x_T" , "G_x_x_x","x_x_x_T",
+"x_4_13_x","x_4_x_x", "x_x_13_x"
+))
+
+
+G   <-c("IFNγ +", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-")
+il4 <-c("IL-4 +", "+", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "+", "+", "-")
+il13<-c("IL-13 +", "-", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "+", "-", "+")
+T   <-c("TNFα +", "+", "+", "-", "+", "-", "-", "+", "+", "+", "-", "+", "-", "-", "-")
+
+labels <- paste0(G, "\n", T, "\n", il4, "\n", il13)
+breaks <- levels(test$variable)
+
+test$th<-"TH1/2"
+test$th[grep("._x_x_.", test$variable)]<-"TH1"
+test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
+test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
+
+supp4a<-booleanplot2(test[test$TB=="LTBI",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
+    coord_cartesian(ylim=c(0,.16))+
+    labs(y="(%) CD4 T cells")
+
+supp5a<-booleanplot2(test[test$TB=="TB",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
+    coord_cartesian(ylim=c(0,.15))+
+    labs(y="(%) CD4 T cells")
+```
+
+
+###Peptide Mtb-specific TH1 Cytokine+ Cell Phenotypes
+```{r ics phenotyping, fig.width=16, fig.height=24}
+phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+
+melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
+test<-filter(melt, variable!="TH1_x_x_x_x")
+test$variable<-gsub("TH1_", "", test$variable)
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+supp4b<-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x",ncol=4)+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10)+
+    labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")
+```
+
+```{r, fig.width=15, fig.height=24}
+phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+
+#graph phenotype
+melt<-melt(phen, id.vars=c("TB", "SM"), measure.vars = grep("TH1_._._._.", names(phen)))
+test<-filter(melt, variable!="TH1_x_x_x_x")
+test$variable<-gsub("TH1_", "", test$variable)
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+supp5b<-booleanplot(test, "variable", "value", tb.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    labs(y="(%) Mtb-Specific TH1 Cytokine+ cells")+
+    coord_cartesian(ylim=c(0,55))+
+    stat_compare_means(method="wilcox.test",label="p.signif", hide.ns=TRUE, label.y=50, size=10)
+```
+
+###Comparing Mtb-specific TH1 cells to total CD4 T cells in peptide stim  
+```{r, fig.width=12, fig.height=6}
+total<-filter_ltbi(subset(CD4, CD4$Stim=="UN"))
+total$cell<-"Total"
+phen<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+names<-c("Donor", "TB", "SM", "Stim", "disease", names(phen)[grep("TH1_", names(phen))])
+mtb_th1<-select(phen, names)
+names(mtb_th1)<-gsub("TH1_", "", names(mtb_th1))
+mtb_th1$cell<-"Mtb-Specific"
+long<-rbindlist(list(total, mtb_th1), fill=TRUE)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$cell<-factor(melt$cell, levels=c("Total", "Mtb-Specific"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- Mtb-Specific","SM+ Total", "SM+ Mtb-Specific"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("Total", "Mtb", "Total", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb-Specific", "SM- Total"),c("SM+ Mtb-Specific", "SM+ Total")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+  
+###Comparing Mtb-specific TH1 cells to PMA TH1 cells  
+```{r, fig.width=12, fig.height=6}
+pma<-filter_ltbi(subset(PHEN, PHEN$Stim=="PMA"))
+pma$cell<-"PMA"
+pep<-filter_ltbi(subset(PHEN, PHEN$Stim=="PEP"))
+pep$cell<-"Mtb"
+long<-rbindlist(list(pma, pep), fill=TRUE)
+names<-c("Donor", "TB", "SM", "Stim", "disease", "cell", names(long)[grep("TH1_", names(long))])
+long<-select(long, names)
+names(long)<-gsub("TH1_", "", names(long))
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- PMA", "SM- Mtb","SM+ PMA", "SM+ Mtb"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("PMA", "Mtb", "PMA", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb", "SM- PMA"),c("SM+ Mtb", "SM+ PMA")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+  
+###Comparing Mtb-specific TH1 cells to total CD4 T cells in peptide stim  
+```{r, fig.width=12, fig.height=6}
+total<-filter_tb(subset(CD4, CD4$Stim=="UN"))
+total$cell<-"Total"
+phen<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+names<-c("Donor", "TB", "SM", "Stim", "disease", names(phen)[grep("TH1_", names(phen))])
+mtb_th1<-select(phen, names)
+names(mtb_th1)<-gsub("TH1_", "", names(mtb_th1))
+mtb_th1$cell<-"Mtb-Specific"
+long<-rbindlist(list(total, mtb_th1), fill=TRUE)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$cell<-factor(melt$cell, levels=c("Total", "Mtb-Specific"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- Mtb-Specific","SM+ Total", "SM+ Mtb-Specific"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = tb.cols)+
+    scale_x_discrete(labels=c("Total", "Mtb", "Total", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb-Specific", "SM- Total"),c("SM+ Mtb-Specific", "SM+ Total")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+
+```
+  
+###Comparing Mtb-specific TH1 cells to PMA TH1 cells  
+```{r, fig.width=12, fig.height=6}
+pma<-filter_tb(subset(PHEN, PHEN$Stim=="PMA"))
+pma$cell<-"PMA"
+pep<-filter_tb(subset(PHEN, PHEN$Stim=="PEP"))
+pep$cell<-"Mtb"
+long<-rbindlist(list(pma, pep), fill=TRUE)
+names<-c("Donor", "TB", "SM", "Stim", "disease", "cell", names(long)[grep("TH1_", names(long))])
+long<-select(long, names)
+names(long)<-gsub("TH1_", "", names(long))
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "cell"), measure.vars=c("T-bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell, sep=" ")
+melt$x<-factor(melt$x, levels=c("SM- PMA", "SM- Mtb","SM+ PMA", "SM+ Mtb"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = tb.cols)+
+    scale_x_discrete(labels=c("PMA", "Mtb", "PMA", "Mtb"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Mtb", "SM- PMA"),c("SM+ Mtb", "SM+ PMA")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+
+
+```{r, fig.width=12, fig.height=6}
+supp4<-cowplot::plot_grid(supp4a, supp4b, nrow=2, labels=c("A", "B"))
+supp5<-cowplot::plot_grid(supp5a, supp5b, nrow=2, labels=c("A", "B"))
+supp1
+supp2
+supp3
+supp4
+supp5
+```
+
+##Proliferation Supplementary
+```{r}
+ogphen<-plot_filter(subset(OGPHEN, OGPHEN$Stim=="SEB"))
+groups <- as_labeller(c("OG" = "Proliferation","IFNg" = "IFNγ","TNFa" = "TNFα", "IL4" = "IL-4"))
+#cytokines
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
+one<-allplot(melt, "TB", "value", all.cols)+    
+    facet_wrap(~variable, labeller = groups, ncol=2)+
+    scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
+    labs(y="(%) Proliferating CD4 T cells")
+
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4"))
+two<-allplot(melt, "TB", "value", all.cols)+    
+    facet_wrap(~variable, labeller = groups)+
+    scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
+    coord_cartesian(ylim=c(0,5))
+
+#phenotypes
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("T-bet", "GATA3"))
+tf<-allplot(melt, "TB", "value", all.cols)+    
+    scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))+
+    labs(y="(%) Proliferating CD4 T cells")
+
+melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("CXCR3", "CCR4"))
+sm<-allplot(melt, "TB", "value", all.cols)+
+    scale_x_discrete(labels=c("SM- SM+\nHC", "SM- SM+\nLTBI", "SM- SM+\nTB"))
+
+first_row = cowplot::plot_grid(NULL, labels = c('A'), nrow=1, label_size = 20, rel_widths = c(3,1))
+second_row = cowplot::plot_grid(one, two, nrow=1, rel_widths = c(2,1), labels=c("B","C"), label_size = 20)
+third_row= cowplot::plot_grid(tf, sm, labels=c('F', 'G'), nrow=1, label_size = 20)
+
+supp6<-cowplot::plot_grid(first_row, second_row, third_row, nrow=3)
+```
+
+```{r}
+ogphen<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
+melt<-melt(ogphen, id.vars=c("TB", "SM"), measure.vars = grep("._._.", names(ogphen)))
+test<-melt[-grep("._._._.", melt$variable),]
+test<-filter(test, variable!="x_x_x")
+test$variable<-factor(test$variable, levels=c(
+"T_G_x" ,       
+"T_x_x" ,         
+"x_G_x" ,         
+"T_G_4" ,
+"T_x_4" ,         
+"x_G_4" ,         
+"x_x_4"          
+))
+test$group<-"TH1/2"
+for(i in 1:length(test$group)){
+    if(test$variable[i] %in% c("T_G_x", "T_x_x", "x_G_x")){
+        test$group[i]<- "TH1"
+    }
+    else if (test$variable[i] == "x_x_4"){
+        test$group[i]<- "TH2"
+    }
+}
+
+T <- c("+", "+", "-", "+", "+", "-", "-")
+G <- c("+", "-", "+", "+", "-", "+", "-")
+il4 <- c("-", "-", "-", "+", "+", "+", "+")
+
+labels <- paste0(T, "\n", G, "\n", il4)
+breaks <- levels(test$variable)
+
+supp7a<-booleanplot(test, "variable", "value", ltbi.cols)+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    facet_grid(~group, scales="free_x", space="free_x")+
+    labs(y="(%) Proliferating CD4 T cells")
+
+```
+
+```{r og phenotype, fig.width=16, fig.height=24}
+#graph phenotype
+melt<-melt(ogphen, id.vars=c("TB", "SM"), measure.vars = grep("._._._.", names(ogphen)))
+test<-filter(melt, variable!="x_x_x_x")
+test$variable<-factor(test$variable, levels=c(
+"t_x_3_4" ,       
+"t_x_3_x" ,         
+"t_x_x_4" ,         
+"t_x_x_x" ,
+"t_g_3_4" ,         
+"t_g_3_x" ,         
+"t_g_x_4" ,         
+"t_g_x_x" ,
+"x_g_3_4" ,         
+"x_g_3_x" ,         
+"x_g_x_4" ,         
+"x_g_x_x" ,
+"x_x_3_4" ,          
+"x_x_3_x" ,         
+"x_x_x_4"           
+))
+
+T <- c("+", "+","+","+","+","+","+","+","-","-","-","-","-","-","-")
+G <- c("-","-","-","-","+", "+","+","+","+","+","+","+","-","-","-")
+c3 <-c("+", "+","-","-","+", "+","-","-","+", "+","-","-","+", "+","-")
+c4 <-c("+","-","+","-","+","-","+","-","+","-","+","-","+","-","+")
+
+labels <- paste0(T, "\n", G, "\n", c3, "\n", c4)
+breaks <- levels(test$variable)
+
+test$tf<-NA
+test$tf[grep("x_g", test$variable)]<-"GATA3"
+test$tf[grep("t_x", test$variable)]<-"T-bet"
+test$tf[grep("t_g", test$variable)]<-"T-bet & GATA3"
+test$tf[grep("x_x_._.", test$variable)]<-"None"
+test$tf<-factor(test$tf, levels=c("T-bet", "T-bet & GATA3", "GATA3", "None"))
+
+supp7b<-booleanplot(test, "variable", "value", ltbi.cols)+facet_wrap(~tf, scales="free_x", ncol=4)+
+    scale_x_discrete(labels = labels, breaks=breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=6)+
+    labs(y="(%) Proliferating Mtb-Specific cells")
+```
+
+```{r, fig.width=12, fig.height=12}
+supp7<-cowplot::plot_grid(supp7a, supp7b, nrow=2, labels=c("A", "B"), rel_widths = c(3,4))
+supp7
+```
+
+###Comparing SEB-proliferating cells to non-proliferating cells in UN 
+```{r, fig.width=12, fig.height=6}
+un<-filter_ltbi(dplyr::filter(OG, Stim=="UN"))
+un$cell<-"Total"
+seb<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="SEB"))
+seb$cell<-"SEB"
+long<-rbindlist(list(un, seb), fill=TRUE)
+long$cell<-factor(long$cell, levels=c("Total", "SEB"))
+long<-data.frame(long)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "Donor", "cell"), 
+           measure.vars=c("T.bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell)
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- SEB","SM+ Total", "SM+ SEB"))
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("Total", "SEB", "Total", "SEB"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Total", "SM- SEB"),c("SM+ Total", "SM+ SEB")) 
+                       ,method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+```
+
+###Comparing CFP-10 and ESAT-6-proliferating cells to non-proliferating cells in UN
+```{r, fig.width=12, fig.height=6}
+un<-filter_ltbi(dplyr::filter(OG, Stim=="UN"))
+un$cell<-"Total"
+ce<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
+ce$cell<-"PEP"
+long<-rbindlist(list(un, ce), fill=TRUE)
+long$cell<-factor(long$cell, levels=c("Total", "PEP"))
+long<-data.frame(long)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "Donor", "cell"), 
+           measure.vars=c("T.bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell)
+melt$x<-factor(melt$x, levels=c("SM- Total", "SM- PEP", 
+                                "SM+ Total", "SM+ PEP"))
+
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("Total", "CFP-10 &\nESAT-6", "Total", "CFP-10 &\nESAT-6"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Total", "SM- PEP"),c("SM+ Total", "SM+ PEP")), 
+        method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+
+```
+
+###Comparing CFP-10 and ESAT-6-proliferating to non-proliferating cells
+```{r, fig.width=12, fig.height=6}
+un<-filter_ltbi(dplyr::filter(OGnope, Stim=="PEP"))
+un$cell<-"Non-Proliferating"
+ce<-filter_ltbi(subset(OGPHEN, OGPHEN$Stim=="PEP"))
+ce$cell<-"Proliferating"
+long<-rbindlist(list(un, ce), fill=TRUE)
+long$cell<-factor(long$cell, levels=c("Non-Proliferating", "Proliferating"))
+long<-data.frame(long)
+
+melt<-melt(long, id.vars=c("TB", "SM", "disease", "Donor", "cell"), 
+           measure.vars=c("T.bet", "GATA3", "CXCR3","CCR4"))
+melt$x<-paste(melt$SM, melt$cell)
+melt$x<-factor(melt$x, levels=c("SM- Non-Proliferating", "SM- Proliferating", 
+                                "SM+ Non-Proliferating", "SM+ Proliferating"))
+
+
+ggplot(melt, aes(x=x, y=value, fill=SM))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
+    facet_wrap(~variable, scales="free", nrow=1)+
+    theme_classic()+
+    scale_fill_manual(values = ltbi.cols)+
+    scale_x_discrete(labels=c("Non-\nProliferating", "Proliferating", 
+                              "Non-\nProliferating", "Proliferating"))+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    theme(text = element_text(size=16))+
+    theme(plot.title = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("SM- Non-Proliferating", "SM- Proliferating"),
+                                        c("SM+ Non-Proliferating", "SM+ Proliferating")), 
+        method="wilcox.test", label="p.format")+
+    labs(x="", y="")
+
+```
+
+
+```{r}
+lum_x<-lum[lum$SM=="SM-",]
+df_x<-as.matrix(lum_x[,3:11])
+row.names(df_x)<-lum_x$Sample
+hc_x <- hclust(as.dist(1-cor(df_x)))
+x<-plot(hc_x)
+
+lum_sm<-lum[lum$SM=="SM+",]
+df_sm<-as.matrix(lum_sm[,3:11])
+row.names(df_sm)<-lum_sm$Sample
+hc_sm <- hclust(as.dist(1-cor(df_sm)))
+sm<-plot(hc_sm)
+
+
+df<-as.matrix(lum[,3:11])
+#heatmap(t(df_x), Rowv=as.dendrogram(hc_x))
+#heatmap(t(df_sm), Rowv=as.dendrogram(hc_sm))
+#heatmap(t(df), Rowv=as.dendrogram(hc_sm))
+```
+
+
+#Exporting Data
+```{r}
+setwd("/Users/tarynam/Desktop/Manuscript1")
+cowplot::save_plot("supp1.png", supp1, base_height=14, base_width=16)
+cowplot::save_plot("supp2.png", supp2, base_height=28, base_width=16)
+cowplot::save_plot("supp3.png", supp3, base_height=7, base_width=16)
+cowplot::save_plot("supp4.png", supp4, base_height=14, base_width=16)
+cowplot::save_plot("supp5.png", supp5, base_height=14, base_width=16)
+cowplot::save_plot("supp6.png", supp6, base_height=14, base_width=16)
+cowplot::save_plot("supp7.png", supp6, base_height=14, base_width=16)
+```
+
+
+#Extra plots
+
+To see if the variation in T-bet and GATA3 in the SEB proliferation was due to original variation or proliferation. It's not.
+```{r}
+test<-merge(OG, OGPHEN, by=c("Sample", "Donor", "Stim", "TB", "SM"))
+test<-filter(test, Stim=="SEB")
+ggplot(test, aes(x=OG.x, y=Tbet.y, color=TB))+geom_point()+stat_smooth(method="lm")
+ggplot(test, aes(x=OG.x, y=GATA3.y, color=TB))+geom_point()+stat_smooth(method="lm")
+ggplot(test, aes(x=Tbet.y, y=GATA3.y, color=TB))+geom_point()+stat_smooth(method="lm")
+
+part1<-filter(CD4, Stim=="UN")
+part2<-filter(OGPHEN, Stim=="SEB")
+test<-merge(part1, part2, by=c("Donor", "TB", "SM"))
+ggplot(test, aes(x=Tbet.x, y=Tbet.y))+geom_point()+stat_smooth(method="lm")
+ggplot(test, aes(x=GATA3.x, y=GATA3.y))+geom_point()+stat_smooth(method="lm")
+```
+
+
+
