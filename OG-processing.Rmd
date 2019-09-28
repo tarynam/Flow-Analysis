@@ -65,6 +65,8 @@ GD<-dplyr::filter(master, !is.na(CD3_gate), !is.na(GD_gate))%>%
 CD3_OG<-dplyr::filter(master, !is.na(CD3_gate), !is.na(OG_gate))
 CD4_OG<-dplyr::filter(master, !is.na(CD3_gate), !is.na(CD4_gate), !is.na(OG_gate))%>%
     dplyr::filter(is.na(CD8_gate), is.na(GD_gate))
+CD4_noOG<-dplyr::filter(master, !is.na(CD3_gate), !is.na(CD4_gate))%>%
+    dplyr::filter(is.na(CD8_gate), is.na(GD_gate), is.na(OG_gate))
 CD8_OG<-dplyr::filter(master, !is.na(CD3_gate), !is.na(CD8_gate), !is.na(OG_gate))%>%
     dplyr::filter(is.na(CD4_gate), is.na(GD_gate))
 gd_OG<-dplyr::filter(master, !is.na(CD3_gate), !is.na(GD_gate), !is.na(OG_gate))
@@ -654,6 +656,298 @@ boolean<-data.frame(cbind(t_g_3_4, t_g_3_x, t_g_x_4, t_g_x_x,
 CD4_OG_summary<-data.frame(cbind(singles, cytokine, boolean))
 CD4_OG_summary$Sample<-row.names(CD4_OG_summary)
 ```
+
+```{r Non-Proliferating CD4s}
+df<-CD4_noOG
+samples<-split(df, list(df$donor, df$Stim))
+IFNg_freq<-sapply(samples, function(g) proc.freq(g, "IFNg_gate"))
+TNFa_freq<-sapply(samples, function(g) proc.freq(g, "TNFa_gate"))
+IL4_freq<-sapply(samples, function(g) proc.freq(g, "IL4_gate"))
+OG_freq<-sapply(samples, function(g) proc.freq(g, "OG_gate"))
+GATA3_freq<-sapply(samples, function(g) proc.freq(g, "GATA3_gate"))
+Tbet_freq<-sapply(samples, function(g) proc.freq(g, "Tbet_gate"))
+CCR4_freq<-sapply(samples, function(g) proc.freq(g, "CCR4_gate"))
+CXCR3_freq<-sapply(samples, function(g) proc.freq(g, "CXCR3_gate"))
+singles<-cbind(IFNg_freq, TNFa_freq, IL4_freq, OG_freq, GATA3_freq, Tbet_freq, CCR4_freq, CXCR3_freq)
+
+##Cytokines
+T_G_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$TNFa_gate)  & !is.na(g$IFNg_gate) &
+            !is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+T_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$TNFa_gate)  & is.na(g$IFNg_gate) &
+            !is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+T_G_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$TNFa_gate)  & !is.na(g$IFNg_gate) &
+            is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+T_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$TNFa_gate)  & is.na(g$IFNg_gate) &
+            is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_G_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            is.na(g$TNFa_gate)  & !is.na(g$IFNg_gate) &
+            !is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_G_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            is.na(g$TNFa_gate)  & !is.na(g$IFNg_gate) &
+            is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            is.na(g$TNFa_gate)  & is.na(g$IFNg_gate) &
+            !is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            is.na(g$TNFa_gate)  & is.na(g$IFNg_gate) &
+            is.na(g$IL4_gate)
+            ))
+    denominator<- length(g$TNFa_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+cytokine<-data.frame(cbind(T_G_4, T_G_x, T_x_4, T_x_x, 
+                  x_G_4, x_G_x, x_x_4, x_x_x))
+
+#Boolean Markers
+t_g_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_g_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_3_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+t_x_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+            !is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_g_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  & !is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_3_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+            !is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_x_4<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) & !is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+x_x_x_x<-sapply(samples, function(g){
+        numerator<-length(which(
+             is.na(g$Tbet_gate)  &  is.na(g$GATA3_gate) &
+             is.na(g$CXCR3_gate) &  is.na(g$CCR4_gate)
+            ))
+    denominator<- length(g$GATA3_gate)
+    freq<-(numerator/denominator)*100
+    freq
+}
+)
+
+boolean<-data.frame(cbind(t_g_3_4, t_g_3_x, t_g_x_4, t_g_x_x, 
+                  t_x_3_4, t_x_3_x, t_x_x_4, t_x_x_x,
+                  x_g_3_4, x_g_3_x, x_g_x_4, x_g_x_x,
+                  x_x_3_4, x_x_3_x, x_x_x_4, x_x_x_x
+                  ))
+CD4_noOG_summary<-data.frame(cbind(singles, cytokine, boolean))
+CD4_noOG_summary$Sample<-row.names(CD4_noOG_summary)
+```
+
 
 ```{r Proliferating CD4s TH1 producing}
 df<-filter(CD4_OG, !is.na(TNFa_gate) | !is.na(IFNg_gate))
@@ -4662,6 +4956,8 @@ counts$Sample<-row.names(counts)
 
 ```{r write files}
 setwd("/Applications/Old Computer/Day Lab/Flow-Data/exported")
+write.csv(CD4_noOG_summary, "OG_CD4_noOG_summary.csv")
+
 #write.csv(CD3, "OG_CD3_total.csv")
 #write.csv(CD4, "OG_CD4_total.csv")
 #write.csv(CD8, "OG_CD8_total.csv")

@@ -35,7 +35,7 @@ l<-lapply(l, function(x) changeTB(x))
 l<-lapply(l, function(x) cleanvariablenames(x))
 
 filenames<-ls(pattern="summary.csv")
-for(i in 1:16){
+for(i in 1:17){
 assign(filenames[i], data.frame(l[i]))}
 ```
 
@@ -53,8 +53,11 @@ l<-lapply(ls(pattern="_OG"), function(x) get(x))
 l<-lapply(l, function(x) sum_boolean(x))
 l<-lapply(l, function(x) sum_boolean2(x))
 filenames<-ls(pattern="_OG")
-for(i in 1:9){
+for(i in 1:10){
 assign(filenames[i], data.frame(l[i]))}
+
+OG_CD4_noOG_summary.csv<-sum_boolean(OG_CD4_noOG_summary.csv)
+OG_CD4_noOG_summary.csv<-sum_boolean2(OG_CD4_noOG_summary.csv)
 ```
 
 ```{r}
@@ -79,6 +82,7 @@ write.csv(OG_CD4_OG.IL4_summary.csv, "OG_CD4_OG.IL4_summary_clean.csv")
 write.csv(OG_CD4_OG.TH1_summary.csv, "OG_CD4_OG.TH1_summary_clean.csv")
 write.csv(OG_CD4_OG.TNFa_summary.csv, "OG_CD4_OG.TNFa_summary_clean.csv")
 write.csv(OG_CD4_OG.IFNg_summary.csv, "OG_CD4_OG.IFNg_summary_clean.csv")
+write.csv(OG_CD4_noOG_summary.csv, "OG_CD4_noOG_summary_clean.csv")
 
 
 write.csv(OG_CD8_bulk_summary.csv, "OG_CD8_bulk_summary_clean.csv")
