@@ -25,60 +25,6 @@ source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
 source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
-
-baseplot<-function(data, xval, yval, colors){
-    ggplot(data, aes(data[,xval], data[,yval], fill=SM))+
-    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
-    scale_fill_manual(values = colors)+
-    theme_classic()+ theme(legend.position="none")+
-    theme(panel.border = element_rect(fill = NA, colour = "black"))+
-    theme(text = element_text(size=20),
-          axis.text.x = element_text(size = 16),
-          strip.text = element_text(size = 20))+
-    theme(plot.title = element_text(hjust = 0.5, size=20)) +
-    labs(x="", y="")
-}
-
-booleanplot<-function(data, xval, yval, colors){
-    ggplot(data, aes(data[,xval], data[,yval], fill=SM))+
-    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape = NA)+
-    scale_fill_manual(values = colors)+
-    theme_classic()+ 
-    theme(legend.position="none")+
-    theme(text = element_text(size=20), 
-          axis.text.x = element_text(size=16), 
-          strip.text = element_text(size = 20))+
-    theme(plot.title = element_text(hjust = 0.5, size=20)) +
-    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10)+
-    labs(x="", y="")
-}
-
-allplot<-function(data, xval, yval, colors){
-    ggplot(data, aes(data[,xval], data[,yval], fill=disease))+
-    geom_boxplot(size=1, position=position_dodge2(width=0.2, padding = 0.2, preserve = "single"), outlier.shape = NA)+
-    scale_fill_manual(values = colors)+
-    theme_classic()+ 
-    theme(legend.position="none") +
-    theme(panel.border = element_rect(fill = NA, colour = "black"))+
-    facet_wrap(~variable)+
-    theme(text = element_text(size=20),
-            axis.text.x = element_text(size = 16),
-            strip.text = element_text(size = 20))+
-    theme(plot.title = element_text(hjust = 0.5, size=20))+
-    labs(x="", y="")
-}
-
-cyt_groups <- as_labeller(c("IFNg" = "IFNγ", 
-                    "TNFa" = "TNFα", "IL4" = "IL-4", "IL13" = "IL-13"))
-
-all_comps<-list(c("HC SM+", "HC SM-"),c("LTBI SM+", "LTBI SM-"), c("TB SM+", "TB SM-")) 
-
-healthy.cols<- c("SM+" = "#1a9850", "SM-" ="#91cf60")
-ltbi.cols<- c("SM+" = "#2166ac", "SM-" = "#85ABD1")
-tb.cols<- c("SM+" = "#b2182b", "SM-"="#E59EA6")
-all.cols<- c("Naive" = "#C8D0D8","HC SM+" = "#1a9850", "HC SM-" ="#91cf60",
-             "LTBI SM+" = "#2166ac", "LTBI SM-" = "#85ABD1",
-             "TB SM+" = "#b2182b", "TB SM-"="#E59EA6")
 ```
 
 ```{r load data}
@@ -226,30 +172,32 @@ x<-filter(plot_filter(melt), variable!="TH1.2.Freq")
 y<-split(x,list(x$SM, x$TB)) 
 A<-lapply(y, function(g) wilcox.test(value~variable, g))
 
-pval<-c(A$`SM-.HC`$p.value, A$`SM+.HC`$p.value,
-        A$`SM-.LTBI`$p.value, A$`SM+.LTBI`$p.value, 
-        A$`SM-.TB`$p.value, A$`SM+.TB`$p.value)
-group<-c("HC SM-", "HC SM+", "LTBI SM-", "LTBI SM+", "TB SM-", "TB SM+")
-table<-data.frame(cbind(group, pval))
-table$pval<-as.numeric(as.character(table$pval))
-table$pval[table$pval<.0001]<-"<0.0001"
-kable(table, caption="TH1 to TH2")
-```
-
-some stats comparing th1 to th1/2 for reference. 
-```{r}
 x<-filter(plot_filter(melt), variable!="TH2.Freq")
 y<-split(x,list(x$SM, x$TB)) 
-A<-lapply(y, function(g) wilcox.test(value~variable, g))
+B<-lapply(y, function(g) wilcox.test(value~variable, g))
 
-pval<-c(A$`SM-.HC`$p.value, A$`SM+.HC`$p.value,
-        A$`SM-.LTBI`$p.value, A$`SM+.LTBI`$p.value, 
-        A$`SM-.TB`$p.value, A$`SM+.TB`$p.value)
-group<-c("HC SM-", "HC SM+", "LTBI SM-", "LTBI SM+", "TB SM-", "TB SM+")
-table<-data.frame(cbind(group, pval))
-table$pval<-as.numeric(as.character(table$pval))
-table$pval[table$pval<.0001]<-"<0.0001"
-kable(table, caption="TH1 to TH1/2")
+hc<-c(A$`SM-.HC`$p.value, A$`SM+.HC`$p.value,
+      B$`SM-.HC`$p.value, B$`SM+.HC`$p.value)
+
+ltbi<-c(A$`SM-.LTBI`$p.value, A$`SM+.LTBI`$p.value, 
+        B$`SM-.LTBI`$p.value, B$`SM+.LTBI`$p.value)
+
+tb<-c(A$`SM-.TB`$p.value, A$`SM+.TB`$p.value,
+      B$`SM-.TB`$p.value, B$`SM+.TB`$p.value)
+
+label<-c("SM- TH1 to TH1/2", "SM- TH1 to TH2", "SM+ TH1 to TH1/2", "SM+ TH1 to TH2")
+
+hc.tab<-data.frame(cbind(label, hc, p.adjust(hc, method="bonferroni")))
+names(hc.tab)<-c("Comparison", "P-value", "Bonferroni Adjust P-val")
+kable(hc.tab, caption="HC")
+
+ltbi.tab<-data.frame(cbind(label, ltbi, p.adjust(ltbi, method="bonferroni")))
+names(hc.tab)<-c("Comparison", "P-value", "Bonferroni Adjust P-val")
+kable(ltbi.tab, caption="LTBI")
+
+tb.tab<-data.frame(cbind(label, tb, p.adjust(tb, method="bonferroni")))
+names(hc.tab)<-c("Comparison", "P-value", "Bonferroni Adjust P-val")
+kable(tb.tab, caption="TB")
 ```
 
 
@@ -397,7 +345,7 @@ a<-baseplot(melt, "SM", "value", tb.cols)+
     labs(y="(%) CD4 T cells")
 
 melt<-melt(cyt, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4", "IL13"))
-b<-baseplot(melt, "disease", "value", tb.cols)+ 
+b<-baseplot(melt, "SM", "value", tb.cols)+ 
     facet_wrap(~variable, labeller = cyt_groups)+
     coord_cartesian(ylim=c(0,.02))
 ```
@@ -503,12 +451,12 @@ groups <- as_labeller(c("IFNg" = "IFNγ",
                     "TNFa" = "TNFα", "IL4" = "IL-4"))
 
 melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IFNg", "TNFa"))
-one<-baseplot(melt, "disease", "value", ltbi.cols)+    
+one<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = groups, ncol=2)+
     labs(y="(%) Proliferating\nMtb-Specific CD4 T cells")
 
 melt<-melt(ogphen, id.vars=c("TB","SM", "disease"), measure.vars=c("IL4"))
-two<-baseplot(melt, "disease", "value", ltbi.cols)+    
+two<-baseplot(melt, "SM", "value", ltbi.cols)+    
     facet_wrap(~variable, labeller = groups)
 ```
 
@@ -556,7 +504,7 @@ melt$variable<- factor(melt$variable, levels=c("TNFα", "IFNγ", "IL-21", "IL-17
 
 a<-baseplot(melt[melt$variable=="TNFα",], "SM", "value", ltbi.cols)+facet_wrap(~variable)+
     coord_cartesian(ylim=c(0,1500))+
-    theme(plot.margin=margin(l=-0.5,unit="cm"))
+    labs(y="pg/mL")
 b<-baseplot(melt[melt$variable=="IFNγ",], "SM", "value", ltbi.cols)+facet_wrap(~variable)+
     coord_cartesian(ylim=c(0,18000))+
     theme(plot.margin=margin(l=-0.5,unit="cm"))
@@ -622,7 +570,9 @@ corrplot(order.pos, method = "circle", insig = "label_sig", tl.col = "black",
 
 #Exporting Data
 ```{r}
-setwd("/Users/tarynam/Desktop/Manuscript1")
+setwd("/Users/tarynam/Desktop/Manuscript1/figures")
+cowplot::save_plot("figure8.png", lumplot, base_height=6, base_width=18)
+
 
 cowplot::save_plot("figure1.png", figure1, base_height=8, base_width=16) #Figure 1
 #cowplot::save_plot("figure1alt1.png", figure1B, base_height=8, base_width=16) #Figure 1
