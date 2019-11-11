@@ -93,28 +93,28 @@ test$th[grep("._x_x_.", test$variable)]<-"TH1"
 test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
 test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
 
-th1.2<-booleanplot2(test[test$th=="TH1/2",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
-    scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
-    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
-    coord_cartesian(ylim=c(0,3))+
-    theme(strip.text.y = element_blank(), strip.background.y = element_blank())+
-    labs(y="(%) CD4 T cells")
 
 th1<-booleanplot2(test[test$th=="TH1",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
     scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
     coord_cartesian(ylim=c(0,25))+
-    theme(strip.text.y = element_blank(), strip.background.y = element_blank())
+    theme(strip.text.y = element_blank(), strip.background.y = element_blank())+
+    labs(y="(%) CD4 T cells")
 
+th1.2<-booleanplot2(test[test$th=="TH1/2",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
+    scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
+    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
+    coord_cartesian(ylim=c(0,3))+
+    theme(strip.text.y = element_blank(), strip.background.y = element_blank())
 
 th2<-booleanplot2(test[test$th=="TH2",], "variable", "value", all.cols)+facet_grid(TB~th, scales="free", space="free")+
     scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
     stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, size=10, label.y = 20)+
-    coord_cartesian(ylim=c(0,3))
+    coord_cartesian(ylim=c(0,1.5))
 ```
 
 ```{r, fig.height=10, fig.width=10}
-supp2<-cowplot::plot_grid(th1.2, th1, th2, ncol=3, rel_widths = c(8,3.5,3.5))
+supp2<-cowplot::plot_grid(th1, th1.2, th2, ncol=3, rel_widths = c(3,8,3.5))
 supp2
 ```
 
@@ -181,12 +181,13 @@ test$variable<-factor(test$variable, levels=c(
 test$th<-"TH1/2"
 test$th[grep("._x_x_.", test$variable)]<-"TH1"
 test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
-test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
+test$th<-factor(test$th, levels=c("TH1", "TH1/2", "TH2"))
 
 a<-booleanplot2(test, "variable", "value", all.cols)+facet_grid(~th, scales="free", space="free")+
     scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
-    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
-    coord_cartesian(ylim=c(0,.16))+
+    stat_compare_means(method="wilcox.test", label="p.signif", 
+                       hide.ns = TRUE, exact=FALSE, size=10, label.y=(.98*.12))+
+    coord_cartesian(ylim=c(0,.12))+
     theme(plot.margin=margin(l=1,unit="cm"))+
     labs(y="(%) CD4 T cells")
 
@@ -323,12 +324,13 @@ test$variable<-factor(test$variable, levels=c(
 test$th<-"TH1/2"
 test$th[grep("._x_x_.", test$variable)]<-"TH1"
 test$th[grep("x_._._x|x_._.._x", test$variable)]<-"TH2"
-test$th<-factor(test$th, levels=c("TH1/2", "TH1", "TH2"))
+test$th<-factor(test$th, levels=c("TH1", "TH1/2", "TH2"))
 
 a<-booleanplot2(test, "variable", "value", all.cols)+facet_grid(~th, scales="free", space="free")+
     scale_x_discrete(labels = cyt_labels, breaks=cyt_breaks)+
-    stat_compare_means(method="wilcox.test", label="p.signif", hide.ns = TRUE, exact=FALSE, size=10)+
-    coord_cartesian(ylim=c(0,.16))+
+    stat_compare_means(method="wilcox.test", label="p.signif", 
+                       hide.ns = TRUE, exact=FALSE, size=10, label.y=(.98*0.11))+
+    coord_cartesian(ylim=c(0,.11))+
     theme(plot.margin=margin(l=1,unit="cm"))+
     labs(y="(%) CD4 T cells")
 
@@ -654,7 +656,7 @@ df<-as.matrix(lum[,3:11])
 
 #Exporting Data
 ```{r}
-setwd("/Users/tarynam/Desktop/Manuscript1")
+setwd("/Users/tarynam/Desktop/Mtb Manuscript/")
 cowplot::save_plot("supp2.png", supp2, base_height=8, base_width=10)
 cowplot::save_plot("supp3.png", supp3, base_height=14, base_width=10)
 cowplot::save_plot("supp4.png", supp4, base_height=12, base_width=12)
