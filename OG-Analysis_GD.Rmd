@@ -30,8 +30,8 @@ CD3<-dplyr::select(read.csv("OG_CD3_bulk_summary_clean.csv"), -X, -X.1)
 CD3_OG<-dplyr::select(read.csv("OG_CD3_OG_summary_clean.csv"), -X, -X.1)
 PBMC<-dplyr::select(read.csv("DonorInfo_clean.csv"), -X)
     PBMC<-PBMC[grep("OG", PBMC$used),]
-mimosa<-dplyr::select(read.csv("OG_MIMOSA_clean.csv"), -X)
-    mimosa<-dplyr::filter(mimosa, celltype=="GD" & Exprate==0.01)
+mimosa<-dplyr::select(read.csv("OG_MIMOSA_complete.csv"), -X)
+    mimosa<-dplyr::filter(mimosa, celltype=="GD")
 ```
 
 ##Checking if I can combine SM- and SM+ in TB groups
@@ -147,7 +147,6 @@ plot_3(test2, "dif")+labs(title="Expansion of gd")
 ##Removing Low Responders
 ```{r}
 antigen.ref<-mimosa
-antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
 antigen.ref<-arrange(antigen.ref, id)
 
 #Total gd
@@ -179,7 +178,6 @@ lapply(x, function(g) table(g$include))
 
 #gd only
 antigen.ref<-mimosa
-antigen.ref$id<-gsub("_Treatment", "", antigen.ref$Sample)
 antigen.ref<-arrange(antigen.ref, id)
 
 phenotype<-GD_OG

@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r, cache=TRUE}
 library(data.table)
-master<-fread("/Applications/Old Computer/Day Lab/Flow-Data/Master-OG.csv")
+master<-fread("/Applications/Old Computer/Day Lab/Flow-Data/Master-OG2.csv")
 ```
 
 ```{r libraries, echo=FALSE, message=FALSE}
@@ -947,7 +947,6 @@ boolean<-data.frame(cbind(t_g_3_4, t_g_3_x, t_g_x_4, t_g_x_x,
 CD4_noOG_summary<-data.frame(cbind(singles, cytokine, boolean))
 CD4_noOG_summary$Sample<-row.names(CD4_noOG_summary)
 ```
-
 
 ```{r Proliferating CD4s TH1 producing}
 df<-filter(CD4_OG, !is.na(TNFa_gate) | !is.na(IFNg_gate))
