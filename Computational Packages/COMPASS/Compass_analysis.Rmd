@@ -1,0 +1,525 @@
+---
+title: "COMPASS_analysis"
+author: "Taryn McLaughlin"
+date: "9/23/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.height = 4, fig.width = 3)
+```
+
+```{r p-value function, echo=TRUE}
+library(dplyr)
+pvals<-function(data, column){
+    
+    data<-filter(data, SM!="N")
+    data$SM<-factor(data$SM, levels=c("X","SM"))
+    data$TB<-factor(data$TB, levels=c("HC","LTBI","TB"))
+    
+    x<-split(data,data$TB) 
+    A<-lapply(x, function(g) wilcox.test(g[,column]~g[,"SM"]))
+    
+    y<-split(data,data$SM) 
+    B<-lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "LTBI")))
+    C<- lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("LTBI", "TB")))
+    D<- lapply(y, function(g) 
+        wilcox.test((g[,column]~g[,"TB"]), subset=g$TB %in% c("HC", "TB")))
+    
+    labels<-c("HC SM+ to HC SM-", "LTBI SM+ to LTBI SM-", "TB SM+ to TB SM-",
+              "HC SM+ to LTBI SM+", "LTBI SM+ to TB SM+", "HC SM+ to TB SM+",
+              "HC SM- to LTBI SM-", "LTBI SM- to TB SM-", "HC SM- to TB SM-"
+    )
+    pvals<-c(A$HC$p.value, A$LTBI$p.value, A$TB$p.value,
+             B$SM$p.value, C$SM$p.value,  D$SM$p.value,
+             B$X$p.value,  C$X$p.value,   D$X$p.value)
+    
+    bonf_adj_pvals<-round(p.adjust(pvals, method="bonferroni"), 4)
+    
+    fdr_adj_pvals<-round(p.adjust(pvals, method="fdr"), 4)
+    
+    table<-(cbind(labels, round(pvals, 4), bonf_adj_pvals, fdr_adj_pvals))
+    colnames(table)<-c("Comparison", paste(column,"p-values"," "), 
+                       "Bonferonni Corrected p-values", "FDR Corrected p-vales")
+    table
+}
+```
+
+```{r COMPASS fits with Yerkes Donors, cache=TRUE, fig.height=10, fig.width=7}
+library(dplyr)
+library(COMPASS)
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+DF<-read.csv("ICS_CD4_Counts_clean.csv")
+compass_data<-DF
+compass_data<-rename(compass_data, 
+    "IFNg&IL4&IL13&TNFa" = "G_4_13_T",
+    "IFNg&IL4&IL13&!TNFa" = "G_4_13_x",
+    "IFNg&IL4&!IL13&TNFa" = "G_4_x_T",
+    "IFNg&IL4&!IL13&!TNFa" =  "G_4_x_x" ,
+    "IFNg&!IL4&IL13&TNFa" = "G_x_13_T" ,
+    "IFNg&!IL4&IL13&!TNFa" = "G_x_13_x" ,
+    "IFNg&!IL4&!IL13&TNFa" = "G_x_x_T",
+    "IFNg&!IL4&!IL13&!TNFa" = "G_x_x_x",
+    "!IFNg&IL4&IL13&TNFa" = "x_4_13_T",
+    "!IFNg&IL4&IL13&!TNFa" = "x_4_13_x",
+    "!IFNg&IL4&!IL13&TNFa" = "x_4_x_T",
+    "!IFNg&IL4&!IL13&!TNFa" = "x_4_x_x",
+    "!IFNg&!IL4&IL13&TNFa" = "x_x_13_T",
+    "!IFNg&!IL4&IL13&!TNFa" = "x_x_13_x",
+    "!IFNg&!IL4&!IL13&TNFa" = "x_x_x_T",
+    "!IFNg&!IL4&!IL13&!TNFa" = "x_x_x_x")
+
+
+compass_data$TB<-factor(compass_data$TB, levels= c("N","HC","LTBI","TB"))
+compass_data$SM<-factor(compass_data$SM, levels= c("N", "X", "SM"))
+compass_data$Stim<-factor(compass_data$Stim, levels=c("UN", "PMA", "WCL", "PEP", "SEA", "SWAP"))
+compass_data$ID<-compass_data$Donor
+metadata<-dplyr::select(compass_data, c("ID","TB","SM","Stim"))
+metadata$group<-paste(metadata$TB,metadata$SM)
+counts<- as.matrix(select(compass_data, "IFNg&IL4&IL13&TNFa", 
+         "IFNg&IL4&IL13&!TNFa", 
+         "IFNg&IL4&!IL13&TNFa",
+         "IFNg&IL4&!IL13&!TNFa",
+         "IFNg&!IL4&IL13&TNFa",
+         "IFNg&!IL4&IL13&!TNFa",
+         "IFNg&!IL4&!IL13&TNFa",
+         "IFNg&!IL4&!IL13&!TNFa",
+         "!IFNg&IL4&IL13&TNFa",
+         "!IFNg&IL4&IL13&!TNFa",
+         "!IFNg&IL4&!IL13&TNFa",
+         "!IFNg&IL4&!IL13&!TNFa",
+         "!IFNg&!IL4&IL13&TNFa",
+         "!IFNg&!IL4&IL13&!TNFa",
+         "!IFNg&!IL4&!IL13&TNFa",
+         "!IFNg&!IL4&!IL13&!TNFa"))
+
+metadata$unique_id <- metadata$ID
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+
+#WCL
+n_wcl <- subset(counts, metadata$Stim =="WCL");
+rownames(n_wcl) <- subset(metadata$unique_id,metadata$Stim=="WCL")
+metadata_wcl<-subset(metadata,metadata$Stim=="WCL")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_wcl))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_wcl<-COMPASS::SimpleCOMPASS (n_s=n_wcl, n_u=n_u, meta=metadata_wcl, individual_id = "unique_id", iterations = 10000, replications = 8, verbose = TRUE)
+
+#PEP
+n_pep <- subset(counts, metadata$Stim =="PEP")
+rownames(n_pep) <- subset(metadata$unique_id,metadata$Stim=="PEP")
+metadata_pep<-subset(metadata,metadata$Stim=="PEP")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_pep))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_pep<-COMPASS::SimpleCOMPASS (n_s=n_pep, n_u=n_u, meta=metadata_pep, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+#PMA
+n_pma <- subset(counts, metadata$Stim =="PMA")
+rownames(n_pma) <- subset(metadata$unique_id,metadata$Stim=="PMA")
+metadata_pma<-subset(metadata,metadata$Stim=="PMA")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_pma))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_pma<-COMPASS::SimpleCOMPASS (n_s=n_pma, n_u=n_u, meta=metadata_pma, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+
+#SEA
+n_sea <- subset(counts, metadata$Stim =="SEA")
+rownames(n_sea) <- subset(metadata$unique_id,metadata$Stim=="SEA")
+metadata_sea<-subset(metadata,metadata$Stim=="SEA")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_sea))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_sea<-COMPASS::SimpleCOMPASS (n_s=n_sea, n_u=n_u, meta=metadata_sea, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+#SWAP
+n_swap<- subset(counts, metadata$Stim =="SWAP")
+rownames(n_swap) <- subset(metadata$unique_id,metadata$Stim=="SWAP")
+metadata_swap<-subset(metadata,metadata$Stim=="SWAP")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_swap))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_swap<-COMPASS::SimpleCOMPASS (n_s=n_swap, n_u=n_u, meta=metadata_swap, individual_id = "unique_id", iterations = 10000, 
+                                  replications = 8, verbose = TRUE)
+```
+
+```{r COMPASS heatmaps yerkes, error =TRUE}
+library(COMPASS)
+plot(fit_pma, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"), 
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+plot(fit_wcl, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"), 
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+plot(fit_pep, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"), 
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+```
+
+```{r COMPASS scores yerkes, error=TRUE}
+library(COMPASS)
+library(ggplot2)
+library(knitr)
+library(dplyr)
+
+####### PMA
+scores_pma<-COMPASS::scores(fit_pma)
+g<-ggplot(scores_pma, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Responses",
+         subtitle="Functionality Score",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Functionality Score")
+
+g<-ggplot(scores_pma, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Responses",
+         subtitle="Polyfunctionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyunctionality Score")
+
+kable(pvals(scores_pma, "FS") , caption = "Non Specific CD4+ T cell Responses")
+kable(pvals(scores_pma, "PFS"))
+
+#### WHOLE CELL LYSATE
+scores_wcl<-COMPASS::scores(fit_wcl)
+g<-ggplot(scores_wcl, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="Functionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Functionality Score")
+g<-ggplot(scores_wcl, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="Polyfunctionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyunctionality Score")
+kable(pvals(scores_wcl, "FS"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals(scores_wcl, "PFS"))
+
+######## PEPTIDE
+scores_pep<-COMPASS::scores(fit_pep)
+g<-ggplot(scores_pep, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Peptide Specific CD4 Responses", 
+         subtitle="Functionality Scores",
+         caption="",
+         x="Disease Status",
+         y="Functionality Score")
+g<-ggplot(scores_pep, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Peptide Specific CD4 Responses", 
+         subtitle="Polyfunctionality Score",
+         caption="",
+         x="Disease Status",
+         y="Polyunctionality Score")
+
+kable(pvals(scores_pep, "FS"), caption = "Mtb Peptide Specific CD4 T cell Responses")
+kable(pvals(scores_pep, "PFS"))
+```
+
+```{r COMPASS fits without Yerkes Donors, cache=TRUE, fig.height=10, fig.width=7}
+library(dplyr)
+library(COMPASS)
+DF<-read.csv("/Applications/Old Computer/Day Lab/Data_Flow/Clean/CD4_count.csv")
+compass_data<-filter(DF, TB!="N")
+compass_data$SM<-factor(compass_data$SM, levels=c("X","SM"))
+compass_data$TB<-factor(compass_data$TB, levels=c("HC","LTBI","TB"))
+compass_data<-rename(compass_data, 
+    "IFNg&IL4&IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count",
+    "IFNg&IL4&IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.1",
+    "IFNg&IL4&!IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.2",
+    "IFNg&IL4&!IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.3",
+    "IFNg&!IL4&IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.4",
+    "IFNg&!IL4&IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.5",
+    "IFNg&!IL4&!IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.6",
+    "IFNg&!IL4&!IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.7",
+    "!IFNg&IL4&IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.8",
+    "!IFNg&IL4&IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.9",
+    "!IFNg&IL4&!IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.10",
+    "!IFNg&IL4&!IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.11",
+    "!IFNg&!IL4&IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.12",
+    "!IFNg&!IL4&IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.13",
+    "!IFNg&!IL4&!IL13&TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.14",
+    "!IFNg&!IL4&!IL13&!TNFa" = "Singlets.Lymphocytes.LD..CD3..CD4..G.4.13.T..Count.15")
+
+compass_data$Stim<-factor(compass_data$Stim, levels=c("UN", "PMA", "WCL", "PEP", "SEA", "SWAP"))
+metadata<-dplyr::select(compass_data, c("ID","TB","SM","Stim"))
+metadata$group<-paste(metadata$TB,metadata$SM)
+counts<- as.matrix(select(compass_data, "IFNg&IL4&IL13&TNFa", 
+         "IFNg&IL4&IL13&!TNFa", 
+         "IFNg&IL4&!IL13&TNFa",
+         "IFNg&IL4&!IL13&!TNFa",
+         "IFNg&!IL4&IL13&TNFa",
+         "IFNg&!IL4&IL13&!TNFa",
+         "IFNg&!IL4&!IL13&TNFa",
+         "IFNg&!IL4&!IL13&!TNFa",
+         "!IFNg&IL4&IL13&TNFa",
+         "!IFNg&IL4&IL13&!TNFa",
+         "!IFNg&IL4&!IL13&TNFa",
+         "!IFNg&IL4&!IL13&!TNFa",
+         "!IFNg&!IL4&IL13&TNFa",
+         "!IFNg&!IL4&IL13&!TNFa",
+         "!IFNg&!IL4&!IL13&TNFa",
+         "!IFNg&!IL4&!IL13&!TNFa"))
+
+metadata$unique_id <- metadata$ID
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+
+#WCL
+n_wcl <- subset(counts, metadata$Stim =="WCL");
+rownames(n_wcl) <- subset(metadata$unique_id,metadata$Stim=="WCL")
+metadata_wcl<-subset(metadata,metadata$Stim=="WCL")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_wcl))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_wcl_noN<-COMPASS::SimpleCOMPASS (n_s=n_wcl, n_u=n_u, meta=metadata_wcl, individual_id = "unique_id", iterations = 10000, replications = 8, verbose = TRUE)
+
+#PEP
+n_pep <- subset(counts, metadata$Stim =="PEP")
+rownames(n_pep) <- subset(metadata$unique_id,metadata$Stim=="PEP")
+metadata_pep<-subset(metadata,metadata$Stim=="PEP")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_pep))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_pep_noN<-COMPASS::SimpleCOMPASS (n_s=n_pep, n_u=n_u, meta=metadata_pep, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+#PMA
+n_pma <- subset(counts, metadata$Stim =="PMA")
+rownames(n_pma) <- subset(metadata$unique_id,metadata$Stim=="PMA")
+metadata_pma<-subset(metadata,metadata$Stim=="PMA")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_pma))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_pma_noN<-COMPASS::SimpleCOMPASS (n_s=n_pma, n_u=n_u, meta=metadata_pma, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+
+#SEA
+n_sea <- subset(counts, metadata$Stim =="SEA")
+rownames(n_sea) <- subset(metadata$unique_id,metadata$Stim=="SEA")
+metadata_sea<-subset(metadata,metadata$Stim=="SEA")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_sea))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_sea_noN<-COMPASS::SimpleCOMPASS (n_s=n_sea, n_u=n_u, meta=metadata_sea, individual_id = "unique_id", iterations = 10000, 
+                                 replications = 8, verbose = TRUE)
+
+#SWAP
+n_swap<- subset(counts, metadata$Stim =="SWAP")
+rownames(n_swap) <- subset(metadata$unique_id,metadata$Stim=="SWAP")
+metadata_swap<-subset(metadata,metadata$Stim=="SWAP")
+
+n_u<-subset(counts,metadata$Stim =="UN")
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN")
+inter<-intersect(rownames(n_u),rownames(n_swap))
+n_u<-subset(counts,metadata$Stim =="UN" & metadata$ID %in% inter)
+rownames(n_u) <- subset(metadata$unique_id,metadata$Stim=="UN" & metadata$ID %in% inter)
+
+fit_swap_noN<-COMPASS::SimpleCOMPASS (n_s=n_swap, n_u=n_u, meta=metadata_swap, individual_id = "unique_id", iterations = 10000, 
+                                  replications = 8, verbose = TRUE)
+```
+
+```{r COMPASS heatmaps, error =TRUE}
+library(COMPASS)
+plot(fit_pma_noN, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"),
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+plot(fit_wcl_noN, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"),
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+plot(fit_pep_noN, order_by_max_functionality = FALSE, markers=c("IL13","IL4","IFNg","TNFa"),
+     row_annotation=c("TB","SM"), border_color=NA, fontsize=14, threshold=0)
+```
+
+```{r COMPASS scores, error =TRUE}
+library(COMPASS)
+library(ggplot2)
+library(knitr)
+
+####### PMA
+scores_pma_noN<-COMPASS::scores(fit_pma_noN)
+g<-ggplot(scores_pma_noN, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Responses",
+         subtitle="Functionality Score",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Functionality Score")
+g<-ggplot(scores_pma_noN, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Non-Specific CD4+ T cell Responses",
+         subtitle="Polyfunctionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyunctionality Score")
+
+kable(pvals(scores_pma_noN, "FS"), caption = "Non-Specific CD4+ T cell Responses")
+kable(pvals(scores_pma_noN, "PFS"))
+
+#### WHOLE CELL LYSATE
+scores_wcl_noN<-COMPASS::scores(fit_wcl_noN)
+g<-ggplot(scores_wcl_noN, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="Functionality Scores",
+         caption="",
+         x="Disease Status",
+         y="Functionality Score")
+g<-ggplot(scores_wcl_noN, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Mtb Whole Cell Lysate Specific CD4+ T cell Responses", 
+         subtitle="Polyfunctionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyunctionality Score")
+
+
+kable(pvals(scores_wcl_noN, "FS"), caption = "Mtb Whole Cell Lysate Specific CD4+ T cell Responses")
+kable(pvals(scores_wcl_noN, "PFS"))
+
+######## PEPTIDE
+scores_pep_noN<-COMPASS::scores(fit_pep_noN)
+g<-ggplot(scores_pep_noN, aes(x=SM, y=FS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Peptide Specific CD4+ T cell Responses", 
+         subtitle="Functionality Scores",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Functionality Score")
+g<-ggplot(scores_pep_noN, aes(x=SM, y=PFS, fill=TB, alpha=SM))
+g + geom_boxplot(outlier.shape = NA, size=1) + 
+    geom_jitter(width=.1,height=0, shape=1,size=2) +
+    scale_fill_manual(values =c("#1a9850" , "#2166ac", "#b2182b"))+
+    scale_alpha_manual(values=c(0.5,1))+
+    theme_bw()+ theme(legend.position="none")+
+    theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+    facet_grid(~TB, scale="free")+
+    labs(title="Peptide Specific CD4+ T cell Responses", 
+         subtitle="Polyfunctionality Score",
+         caption="",
+         x="TB and S. mansoni Status",
+         y="Polyunctionality Score")
+
+kable(pvals(scores_pep_noN, "FS"), caption = "Mtb Peptide Specific CD4+ T cell Responses")
+kable(pvals(scores_pep_noN, "PFS"))
+
+```
+
+

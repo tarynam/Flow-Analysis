@@ -1,0 +1,216 @@
+---
+title: "MIMOSA Priors"
+author: "Taryn McLaughlin"
+date: "10/25/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE, message = FALSE)
+library(MIMOSA)
+```
+
+**Background:** When we spoke in April, I asked if MIMOSA could be used in flow experiments with dye dilution assays since the expected positive counts are much higher than in an intracellular cytokine stain. You said that it should be possible by changing the priors, but would need to be optimized. The priors are specified by the EXPRATE argument in the .fitMCMC function which is called by the MIMOSA function. I'm having trouble getting my edits to EXPRATE to stick.  
+  
+This is just the example in the ReadMe on your Github to show that the package is in fact working correctly. Though I don't know why I get a warning error since it's literally copied from the help file. 
+
+```{r, cache = TRUE}
+library(MIMOSA)
+data(ICS)
+E<-ConstructMIMOSAExpressionSet(ICS,
+                    reference=ANTIGEN%in%'negctrl',measure.columns=c('CYTNUM','NSUB'),
+                    other.annotations=c('CYTOKINE','TCELLSUBSET','ANTIGEN','UID'),
+                    default.cast.formula=component~UID+ANTIGEN+CYTOKINE+TCELLSUBSET,
+                    .variables=.(TCELLSUBSET,CYTOKINE,UID),
+                    featureCols=1,ref.append.replace='_REF')
+
+result<-MIMOSA(NSUB+CYTNUM~UID+TCELLSUBSET+CYTOKINE|ANTIGEN,
+               data=E, method='mcmc',
+               subset=RefTreat%in%'Treatment'&ANTIGEN%in%'ENV',
+               ref=ANTIGEN%in%'ENV'&RefTreat%in%'Reference')
+
+head(getZ(result))
+```
+  
+I pulled this documentation from .fitMCMC by calling fixInNamespace which pulls up the function in a new window for you to approve. I didn't actually click any buttons, I just copied the function.
+
+```{r, eval = FALSE}
+fixInNamespace(".fitMCMC", .fitMCMC, ns="MIMOSA")
+function (data, inits = NULL, iter = 250000, burn = 50000, thin = 1, 
+    tune = 100, outfile = basename(tempfile(tmpdir = ".", fileext = ".dat")), 
+    alternative = "greater", UPPER = 0.5, LOWER = 0.15, FAST = TRUE, 
+    EXPRATE = 1e-04, pXi = c(1, 1), seed = 10) 
+{
+    set.seed(seed)
+    alternative <- match.arg(alternative, c("greater", "not equal"))
+    data <- icsdata2mvicsdata(data)
+    if (is.null(inits)) {
+        r <- MDMix(data)
+        inits <- list(alpha.s = r@par.stim, alpha.u = r@par.unstim, 
+            q = r@w[1], z = round(r@z))
+    }
+    if (alternative == "greater") {
+        ps <- t(do.call(cbind, apply(data$n.stim, 1, function(x) (data.frame(prop.table(x))[-1L, 
+            , drop = FALSE]))))
+        pu <- t(do.call(cbind, apply(data$n.unstim, 1, function(x) (data.frame(prop.table(x))[-1L, 
+            , drop = FALSE]))))
+        filter <- sapply(1:nrow(ps), function(i) all(ps[i, ] <= 
+            pu[i, ]))
+        FILTER = TRUE
+    }
+    else {
+        filter <- rep(FALSE, nrow(data$n.stim))
+        FILTER <- FALSE
+    }
+    result <- .Call("C_fitMCMC", as.matrix(data$n.stim), as.matrix(data$n.unstim), 
+        as.vector(inits$alpha.s), as.vector(inits$alpha.u), as.vector(inits$q), 
+        as.matrix(inits$z), as.vector(iter), as.vector(burn), 
+        as.vector(thin), as.numeric(tune), as.character(outfile), 
+        as.vector(filter), as.numeric(UPPER), as.numeric(LOWER), 
+        FILTER, FAST, as.numeric(EXPRATE), as.numeric(pXi))
+    if (inherits(result, "character")) {
+        return(result)
+    }
+    result$z <- cbind(result$z, 1 - result$z)
+    result$getmcmc <- function(x = outfile) {
+        mcmc(read.table(x, sep = "\t", header = TRUE))
+    }
+    result$getP <- function(x = paste(outfile, "P", sep = ""), 
+        thin = 1) {
+        if (thin > 1) {
+            nc <- length(strsplit(readLines(x, 1), "\t")[[1]])
+            thins <- paste("p", paste(rep(";n", thin - 1), collapse = ""), 
+                sep = "")
+            s <- sprintf("sed -n '%s' %s|cut -f %s-%s", thins, 
+                x, (nc/3 + 1), nc)
+            con <- pipe(s)
+            d <- do.call(rbind, lapply(strsplit(readLines(con), 
+                "\t")[-1L], as.numeric))
+            colnames(d) <- strsplit(readLines(x, 1), "\t")[[1]][(nc/3 + 
+                1):nc]
+            d <- split(as.list(data.frame(d)), gl(nc/3, 2))
+            close(con)
+        }
+        else {
+            d <- mcmc(read.table(x, sep = "\t", header = TRUE))
+            nc <- ncol(d)
+            d <- split(as.list(data.frame(d[, (nc/3 + 1):nc])), 
+                gl(nc/3, 2))
+        }
+        d
+    }
+    attr(result, "class") <- c(attr(result, "class"), "MDMixResult")
+    attr(result, "pData") <- attr(data, "pData")
+    result$n.stim <- data$n.stim
+    result$n.unstim <- data$n.unstim
+    result
+}
+```
+
+So now here is my new fitMCMC function
+
+```{r}
+library(MIMOSA)
+my.fitMCMC<-function (data, inits = NULL, iter = 250000, burn = 50000, thin = 1, 
+          tune = 100, outfile = basename(tempfile(tmpdir = ".", fileext = ".dat")), 
+          alternative = "greater", UPPER = 0.5, LOWER = 0.15, FAST = TRUE, 
+          EXPRATE = .01, pXi = c(1, 1), seed = 10)
+{
+    set.seed(seed)
+    alternative <- match.arg(alternative, c("greater", "not equal"))
+    data <- MIMOSA:::icsdata2mvicsdata(data)
+    if (is.null(inits)) {
+        r <- MDMix(data)
+        inits <- list(alpha.s = r@par.stim, alpha.u = r@par.unstim, 
+                      q = r@w[1], z = round(r@z))
+    }
+    if (alternative == "greater") {
+        ps <- t(do.call(cbind, apply(data$n.stim, 1, function(x) (data.frame(prop.table(x))[-1L, 
+                                                                                            , drop = FALSE]))))
+        pu <- t(do.call(cbind, apply(data$n.unstim, 1, function(x) (data.frame(prop.table(x))[-1L, 
+                                                                                              , drop = FALSE]))))
+        filter <- sapply(1:nrow(ps), function(i) all(ps[i, ] <= 
+                                                         pu[i, ]))
+        FILTER = TRUE
+    }
+    else {
+        filter <- rep(FALSE, nrow(data$n.stim))
+        FILTER <- FALSE
+    }
+    result <- .Call("C_fitMCMC", as.matrix(data$n.stim), as.matrix(data$n.unstim), 
+                    as.vector(inits$alpha.s), as.vector(inits$alpha.u), as.vector(inits$q), 
+                    as.matrix(inits$z), as.vector(iter), as.vector(burn), 
+                    as.vector(thin), as.numeric(tune), as.character(outfile), 
+                    as.vector(filter), as.numeric(UPPER), as.numeric(LOWER), 
+                    FILTER, FAST, as.numeric(EXPRATE), as.numeric(pXi))
+    if (inherits(result, "character")) {
+        return(result)
+    }
+    result$z <- cbind(result$z, 1 - result$z)
+    result$getmcmc <- function(x = outfile) {
+        coda:::mcmc(read.table(x, sep = "\t", header = TRUE))
+    }
+    result$getP <- function(x = paste(outfile, "P", sep = ""), 
+                            thin = 1) {
+        if (thin > 1) {
+            nc <- length(strsplit(readLines(x, 1), "\t")[[1]])
+            thins <- paste("p", paste(rep(";n", thin - 1), collapse = ""), 
+                           sep = "")
+            s <- sprintf("sed -n '%s' %s|cut -f %s-%s", thins, 
+                         x, (nc/3 + 1), nc)
+            con <- pipe(s)
+            d <- do.call(rbind, lapply(strsplit(readLines(con), 
+                                                "\t")[-1L], as.numeric))
+            colnames(d) <- strsplit(readLines(x, 1), "\t")[[1]][(nc/3 + 
+                                                                     1):nc]
+            d <- split(as.list(data.frame(d)), gl(nc/3, 2))
+            close(con)
+        }
+        else {
+            d <- coda:::mcmc(read.table(x, sep = "\t", header = TRUE))
+            nc <- ncol(d)
+            d <- split(as.list(data.frame(d[, (nc/3 + 1):nc])), 
+                       gl(nc/3, 2))
+        }
+        d
+    }
+    attr(result, "class") <- c(attr(result, "class"), "MDMixResult")
+    attr(result, "pData") <- attr(data, "pData")
+    result$n.stim <- data$n.stim
+    result$n.unstim <- data$n.unstim
+    result
+}
+```
+
+I then assign it to the MIMOSA namespace and call the MIMOSA function and it runs just fine.
+
+```{r, cache = TRUE}
+library(MIMOSA)
+assignInNamespace(".fitMCMC", my.fitMCMC, ns="MIMOSA")
+result_2<-MIMOSA(NSUB+CYTNUM~UID+TCELLSUBSET+CYTOKINE|ANTIGEN,
+               data=E, method='mcmc',
+               subset=RefTreat%in%'Treatment'&ANTIGEN%in%'ENV',
+               ref=ANTIGEN%in%'ENV'&RefTreat%in%'Reference')
+```
+
+Now it runs just fine but I get nearly the same results with both the original .fitMCMC and my.fitMCMC which I feel like shouldn't happen when the priors are different.
+
+```{r}
+library(knitr)
+z1<-cbind(countsTable(result), fdr(result), getZ(result))
+z2<-cbind(countsTable(result_2), fdr(result_2), getZ(result_2))
+
+kable(head(z1, 10), caption = "Output for original fitMCMC")
+kable(head(z2, 10), caption = "Output for new fitMCMC")
+
+kable(colMeans(z1), caption = "Means for original fitMCMC")
+kable(colMeans(z2), caption = "Means for new fitMCMC")
+
+#testing for equality between the probability of fdr
+all.equal(z1[,5], z2[,5])
+#testing for equality between the probability of no response columns
+all.equal(z1[,6], z2[,6])
+#testing for equality between the probability of response columns
+all.equal(z1[,7], z2[,7])
+```
+
