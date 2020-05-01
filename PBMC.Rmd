@@ -108,7 +108,7 @@ names(pbmc)<-c("Donor", "TB" , "SM" ,
 #The studyIDs of coenrolled people are NK#_TRU# and we want just the NK# to match the lab notes
     QFT$Donor<-tstrsplit(QFT$StudyID, "_")[[1]]
 #trim the data set to only those study IDs in the lab notes and select the columns you want
-    QFT<-dplyr::select(QFT, Donor, age, sex, QFT, SchistosomaIntensity)%>%
+    QFT<-dplyr::select(QFT, Donor, age, sex, QFT, HB, SchistosomaIntensity)%>%
         dplyr::filter(Donor %in% pbmc$Donor)
 ```
 

@@ -130,12 +130,12 @@ DonorInfo$SM<-gsub("X", "SM-", DonorInfo$SM)
 
 library(tableone)
 #Create a variable list which we want in Table 1
-listVars <- c("age", "sex", "QFT", "SchistosomaIntensity")
+listVars <- c("age", "sex", "QFT", "HB", "SchistosomaIntensity")
 
 #Define categorical variables
 catVars <- c("TB","SM")
 
-mediqr<- c("age", "QFT", "SchistosomaIntensity")
+mediqr<- c("age", "QFT", "SchistosomaIntensity", "HB")
 
 #Total Population
 table1 <- CreateTableOne(vars = listVars, data = DonorInfo, factorVars = catVars,
