@@ -1,0 +1,916 @@
+---
+title: "Untitled"
+author: "Taryn McLaughlin"
+date: "1/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, comment=NA, warning=FALSE, echo=FALSE)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(tidyr)
+library(reshape2)
+library(cowplot)
+library(PMCMR)
+library(COMPASS)
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/tryna function.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/pvals_TB-SM.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/plot_functions.R")
+source("/Users/tarynam/Desktop/Miscellaneous-Scripts/comp_hc_ltbi.R")
+remove<-c("HD10" , "HD30" , "HD211" , "HD341" , "HD382" , "HD396", "HD398" ,"HD421", "HD446" ,"HD469", "HD478" ,"HD479", "HD487" ,"HD495" ,"HD211" ,"HD384", "HD454")
+gd_read<-function(filename){
+    library(dplyr) #load it in the function to overcome namespace issues
+    datatable<-dplyr::select(read.csv(filename), -X)
+    datatable<-filter(datatable, Stim %in% c("SEA", "SWAP")) #No SM data in primary files
+    datatable<-filter(datatable, SM!="X") #No SM data in primary files
+    datatable<-datatable[!(datatable$Donor %in% remove),]
+    datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+    datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+    datatable
+    datatable
+}
+#old
+#scale_fill_manual(values =c("N" = "#da70d6","HC" = "#00AFBB", "LTBI" = "#E7B800","TB"="#FC4E07"))+
+#new
+#scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+```
+
+```{r}
+library(tableone)
+nk<-read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/DonorInfo_clean.csv")
+sm<-nk[nk$SM=="SM",]
+yerkes<-read.csv("/Applications/Old Computer/Day Lab/Flow/Yerkes Donor Info.csv")
+yerkes<-yerkes[yerkes$BCG.status=="N",]
+yerkes<-yerkes[!(is.na(yerkes$IgG)),]
+keep<-gsub("HD","",nk$Donor[nk$TB=="N"])
+yerkes<-yerkes[yerkes$Donor %in% keep,]
+gd<-rbindlist(list(sm, yerkes), fill=TRUE)
+gd$TB[is.na(gd$TB)]<-"N"
+gd$SM[is.na(gd$SM)]<-"SM"
+
+
+#Create a variable list which we want in Table 1
+listVars <- c("age", "sex", "SchistosomaIntensity", "QFT")
+#Define categorical variables
+catVars <- c( "sex")
+mediqr<- c("age", "SchistosomaIntensity","QFT")
+#Total Population
+table1 <- CreateTableOne(vars = listVars, data = gd, strata = "TB",factorVars = catVars)
+tab<-print(table1, showAllLevels = TRUE, nonnormal = mediqr, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+## Save to a CSV file
+write.csv(tab, file = "/Users/tarynam/Desktop/manuscript-sm/cohort.csv")
+```
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+compass<-rbind(gd_read("ICS_compass_sea.csv"), gd_read("ICS_compass_swap.csv"))
+cd4<-CYT<-gd_read("ICS_CD4_Cytokine_clean.csv")
+cd8<-CYT<-gd_read("ICS_CD8_Cytokine_clean.csv")
+cd3<-CYT<-gd_read("ICS_CD3_Cytokine_clean.csv")
+neg<-CYT<-gd_read("ICS_GD_Cytokine_clean.csv")
+gd<-gd_read("OG_gd_bulk_summary_clean.csv")
+gd_OG<-gd_read("OG_gd_OG_summary_clean_NAs.csv")
+CD3<-gd_read("OG_CD3_bulk_summary_clean.csv")
+CD3_OG<-gd_read("OG_CD3_OG_summary_clean.csv")
+CD4<-gd_read("OG_CD4_bulk_summary_clean.csv")
+CD8<-gd_read("OG_CD8_bulk_summary_clean.csv")
+mimosa<-read.csv("OG_MIMOSA_complete.csv")
+load("/Users/tarynam/Desktop/Flow-scripts/Computational Packages/COMPASS/all_sea2.RData")
+load("/Users/tarynam/Desktop/Flow-scripts/Computational Packages/COMPASS/all_SWAP2.RData")
+load("/Users/tarynam/Desktop/Flow-scripts/Computational Packages/COMPASS/all_pma2.RData")
+```
+
+# ICS  
+For whatever very annoying reason I can't seem to put the compass plots into the grids I make. I couldnt' with the corrplot either so not too surprised.  
+```{r compass heatmaps sea}
+fit_sea$data$meta$celltype<-gsub("GD", "CD4-CD8-", fit_sea$data$meta$celltype)
+fit_sea$data$meta$celltype<-factor(fit_sea$data$meta$celltype, levels=c("CD4", "CD8", "CD4-CD8-"))
+
+Var2 = c("#c3c3c3", "#878787" , "#000000")
+names(Var2) = c("CD4", "CD8", "CD4-CD8-")
+ann_colors_rows = list(celltype = Var2)
+
+plot(fit_sea, palette = colorRampPalette(c("white", "#3f0086"))(50),
+     row_annotation = "celltype", row_annotation_colors = ann_colors_rows, border_color=NA,
+     markers=c("IL13", "IL4", "TNFa", "IFNg"), order_by_max_functionality = FALSE, threshold = -1)
+
+```
+
+```{r compass heatmaps swap}
+fit_swap$data$meta$celltype<-gsub("GD", "CD4-CD8-", fit_swap$data$meta$celltype)
+fit_swap$data$meta$celltype<-factor(fit_swap$data$meta$celltype, levels=c("CD4", "CD8", "CD4-CD8-"))
+
+Var2 = c("#c3c3c3", "#878787" , "#000000")
+names(Var2) = c("CD4", "CD8", "CD4-CD8-")
+ann_colors_rows = list(celltype = Var2)
+
+plot(fit_swap, palette = colorRampPalette(c("white", "#3CB371"))(50),
+     row_annotation = "celltype", row_annotation_colors = ann_colors_rows, border_color=NA,
+     markers=c("IL13", "IL4", "TNFa", "IFNg"), order_by_max_functionality = FALSE, threshold = -1)
+```
+
+```{r literally just to get the grey bars}
+fit_swap$data$meta$celltype<-gsub("GD", "CD4-CD8-", fit_swap$data$meta$celltype)
+M<-fit_swap$fit$mean_gamma
+cytlabels<-data.frame(fit_swap$fit$categories[,1:4])
+for(n in 1:ncol(cytlabels)){
+    cytlabels[,n]<-as.factor(as.character(cytlabels[,n]))
+}
+cytlabels<-cytlabels[1:15,]
+cytlabels2<-select(cytlabels, IL13, IL4, TNFa, IFNg)
+names(cytlabels2)<-c("IL13", "IL4", "TNFα", "IFNγ")
+row_ann <- fit_swap$data$meta
+M<-M[which(row_ann$SM!="X"),]
+M<-M[,1:15]
+rownames(row_ann)<-row_ann$unique
+row_ann<-row_ann[which(row_ann$SM!="X"),]
+row_ann<-select(row_ann, celltype, TB)
+
+Var1 = c("#e0e0e0", "#1a9850" , "#2166ac", "#b2182b")
+names(Var1) = c("N", "HC", "LTBI", "TB")
+
+Var2 = c("#A9A9A9", "#696969" , "#000000")
+names(Var2) = c("CD4", "CD8", "CD4-CD8-")
+
+ann_colors_rows = list(celltype = Var2)
+
+Var3 = c("white", "#A9A9A9")
+names(Var3) = c("0", "1")
+ann_colors_cols = list(IFNγ = Var3, TNFα=Var3, IL4=Var3, IL13=Var3)
+
+pheatmap(M, cluster_rows=FALSE, cluster_cols=FALSE,
+         color = colorRampPalette(c("white", "navy"))(50),
+         annotation = cytlabels2, annotation_colors = ann_colors_cols,
+         show_rownames=FALSE,
+         row_annotation = row_ann, row_annotation_colors = ann_colors_rows)
+```
+
+```{r fig one, fig.width=6, fig.height=3}
+melt<-melt(compass, id.vars=c("group","celltype", "Stim"), measure.vars=c("FS", "PFS"))
+
+a<-ggplot(melt[melt$celltype=="CD4",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(subtitle="CD4",y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+b<-ggplot(melt[melt$celltype=="CD8",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.35)+
+    labs(subtitle="CD8",y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+c<-ggplot(melt[melt$celltype=="GD",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.35)+
+    labs(subtitle="CD4-CD8-",y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+bottom<-cowplot::plot_grid(a, b, c, nrow=1, labels=c("", "", ""), label_size = 24)
+fig1<-cowplot::plot_grid(NULL, NULL, bottom, labels=c("A", "B", "C"), nrow=3, label_size=24, rel_heights = c(1.5,6,2.5))
+bottom
+```
+```{r, supp fig 2}
+cd4$celltype<-"CD4"
+cd4$Cyt.Freq<-rowSums(cd4[grep("_", names(cd4))[1:15]])
+cd8$celltype<-"CD8"
+cd8$Cyt.Freq<-rowSums(cd8[grep("_", names(cd8))[1:15]])
+neg$celltype<-"CD4-CD8-"
+neg$Cyt.Freq<-rowSums(neg[grep("_", names(neg))[1:15]])
+ics<-rbindlist(list(cd4, cd8, neg), fill=TRUE)
+ics$celltype<-factor(ics$celltype, levels=c("CD4", "CD8", "CD4-CD8-"))
+
+supp2<-ggplot(ics, aes(x=Stim, y=Cyt.Freq))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_wrap(~celltype, scales="free")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Cytokine+ (%)",
+         x="")
+
+
+melt<-melt(ics, id.vars=c("celltype", "Stim"), measure.vars=c("IFNg", "TNFa", "IL4", "IL13"))
+melt$variable<-factor(melt$variable, levels=c("Cyt.Freq", "IFNg", "TNFa", "IL4", "IL13"))
+cyt.groups<-as_labeller(c("IL4" = "IL-4", "IFNg" = "IFNγ", "TNFa" = "TNFα", "IL13"="IL-13", "Cyt.Freq"="Total"))
+
+a<-ggplot(melt[melt$celltype=="CD4",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable, scales="free", labeller=cyt.groups)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.2)+
+    labs(subtitle="CD4",y="Cytokine Frequency (%)",
+         x="")
+
+b<-ggplot(melt[melt$celltype=="CD8",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable, scales="free", labeller=cyt.groups)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.25)+
+    labs(subtitle="CD8",y="Cytokine Frequency (%)",
+         x="")
+
+c<-ggplot(melt[melt$celltype=="CD4-CD8-",], aes(x=Stim, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values =c("SEA" = "#5700b8","SWAP" = "#3CB371"))+
+    facet_grid(~variable, scales="free", labeller=cyt.groups)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y = 15)+
+    labs(subtitle="CD4-CD8-",y="Cytokine Frequency (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,16))
+
+ics_celltype<-cowplot::plot_grid(a, b, c, ncol=1, labels=c("A", "B", "C"), label_size = 26)
+```
+
+  
+```{r supp fig 2 pma compass}
+fit_pma$data$meta$celltype<-gsub("GD", "CD4-CD8-", fit_pma$data$meta$celltype)
+fit_pma$data$meta$celltype<-factor(fit_pma$data$meta$celltype, levels=c("CD4", "CD8", "CD4-CD8-"))
+
+Var2 = c("#c3c3c3", "#878787" , "#000000")
+names(Var2) = c("CD4", "CD8", "CD4-CD8-")
+ann_colors_rows = list(celltype = Var2)
+
+plot(fit_pma, palette = colorRampPalette(c("white", "#000080"))(50),
+     row_annotation = "celltype", row_annotation_colors = ann_colors_rows, border_color=NA,
+     markers=c("IL13", "IL4", "TNFa", "IFNg"), order_by_max_functionality = FALSE, threshold = -1)
+
+datatable<-dplyr::select(read.csv("/Applications/Old Computer/Day Lab/Flow-Data/clean/ICS_compass_pma.csv"), -X)
+datatable<-filter(datatable, Stim =="PMA") #No SM data in primary files
+datatable<-filter(datatable, SM!="X") #No SM data in primary files
+datatable<-datatable[!(datatable$Donor %in% remove),]
+datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+melt<-melt(datatable, id.vars=c("celltype", "Stim"), measure.vars=c("FS", "PFS"))
+
+a<-ggplot(melt, aes(x=celltype, y=value))+
+    geom_boxplot(aes(fill=Stim),size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_x_discrete(labels = c("CD4", "CD8", "CD4-CD8-"))+
+    scale_fill_manual(values =c("PMA" = "#000094"))+
+    facet_grid(~variable)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(comparisons=list(c("CD4", "CD8"), c("CD4", "GD")),
+                       label="p.signif", method="wilcox.test", size=8, hide.ns=TRUE, step.increase = .2)+
+    labs(subtitle="",y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,1.3))
+
+supp3<-cowplot::plot_grid(NULL, a, ncol=1, rel_heights = c(6,2.5),
+                          labels=c("A", "B"), label_size = 26)
+```
+
+ 
+## Split by celltype, compare Stims within TB  
+don't need to run stats because ggplot handles... lots of differences but doesn't tell us much more than the previous figure. Might be good first supplement.  
+```{r supp fig 3, fig.width=10, fig.height=10}
+##CD4
+cd4fs<-ggplot(compass[compass$celltype=="CD4",], aes(x=Stim, y=FS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.35, hide.ns = TRUE)+
+    labs(subtitle="Functionality Scores", y="CD4 Functionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+cd4pfs<-ggplot(compass[compass$celltype=="CD4",], aes(x=Stim, y=PFS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.16, hide.ns = TRUE)+
+    labs(subtitle="Polyfunctionality Scores", y="CD4 Polyfunctionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.18))
+
+cd4<-cowplot::plot_grid(cd4fs, cd4pfs, nrow=1)
+
+##CD8
+cd8fs<-ggplot(compass[compass$celltype=="CD8",], aes(x=Stim, y=FS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.35, hide.ns = TRUE)+
+    labs(y="CD8 Functionality Score",
+         x="")+
+        coord_cartesian(ylim=c(0,.4))
+
+
+cd8pfs<-ggplot(compass[compass$celltype=="CD8",], aes(x=Stim, y=PFS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.16, hide.ns = TRUE)+
+    labs(y="CD8 Polyfunctionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.18))
+
+cd8<-cowplot::plot_grid(cd8fs, cd8pfs, nrow=1)
+
+##GD
+gdfs<-ggplot(compass[compass$celltype=="GD",], aes(x=Stim, y=FS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.35, hide.ns = TRUE)+
+    labs(y="CD4-CD8- Functionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+
+gdpfs<-ggplot(compass[compass$celltype=="GD",], aes(x=Stim, y=PFS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=.16, hide.ns = TRUE)+
+    labs(y="CD4-CD8- Polyfunctionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.18))
+
+
+gds<-cowplot::plot_grid(gdfs, gdpfs, nrow=1)
+
+supp4<-cowplot::plot_grid(cd4, cd8, gds, ncol=1, labels=c("A", "B", "C"), label_size=26)
+```
+
+## Split by Stim, compare celltypes within TB
+Within the SWAP stim in the LTBI and TB groups, celltype responses are different. Might be figure 2.  
+### SEA  
+```{r}
+sea<-compass[compass$Stim=="SEA",]
+sea$celltype<-factor(sea$celltype)
+x<-split(sea, sea$TB)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(FS~celltype, g)$p.value)
+
+sea<-compass[compass$Stim=="SEA",]
+sea$celltype<-factor(sea$celltype)
+x<-split(sea, sea$TB)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(PFS~celltype, g)$p.value)
+```
+### SWAP  
+```{r}
+#FS
+swap<-compass[compass$Stim=="SWAP",]
+swap$celltype<-factor(swap$celltype)
+x<-split(swap, swap$TB)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(FS~celltype, g)$p.value)
+
+#PFS
+swap<-compass[compass$Stim=="SWAP",]
+swap$celltype<-factor(swap$celltype)
+x<-split(swap, swap$TB)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(PFS~celltype, g)$p.value)
+```
+
+```{r fig 2}
+fs<-ggplot(compass, aes(x=celltype, y=FS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    facet_grid(Stim~TB)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    scale_x_discrete(labels = c("CD4", "CD8", "CD4-CD8-"))+
+    stat_compare_means(comparisons=list(c("GD", "CD8"), c("GD", "CD4")), 
+            label="p.signif" ,label_y=0.4, hide.ns = TRUE, size=8, step.increase=0.15)+
+    labs(y="Functionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.56))
+
+supp6<-ggplot(compass, aes(x=celltype, y=PFS))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    facet_grid(Stim~TB)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    scale_x_discrete(labels = c("CD4", "CD8", "CD4-CD8-"))+
+    stat_compare_means(comparisons=list(c("GD", "CD8"), c("GD", "CD4")), 
+            label="p.signif" ,label_y=0.2, hide.ns = TRUE, size=8, step.increase=0.15)+
+    labs(y="Polyfunctionality Score",
+         x="")+
+    coord_cartesian(ylim=c(0,0.26))
+
+fig2<-cowplot::plot_grid(NULL, fs, ncol=1, labels=c("A", "B"), label_size=26, rel_heights = c(3,4))
+two.hor<-cowplot::plot_grid(NULL, fs, ncol=2, labels=c("A", "B"), label_size=26, rel_widths = c(5,4))
+two.v3<-cowplot::plot_grid(NULL, fs, ncol=2, labels=c("A", "B"), label_size=26, rel_widths = c(4,6))
+```
+
+## Split by Stim compare TB within celltypes
+Only SEA difference was CD8 comparing N to LTBI and no SWAP differences so supplementary if anything.
+```{r}
+sea<-compass[compass$Stim=="SEA",]
+sea$TB<-factor(sea$TB)
+x<-split(sea, sea$celltype)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(FS~TB, g)$p.value)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(PFS~TB, g)$p.value)
+
+    
+swap<-compass[compass$Stim=="SWAP",]
+swap$celltype<-factor(swap$celltype)
+x<-split(swap, swap$celltype)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(FS~TB, g)$p.value)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(PFS~TB, g)$p.value)
+```
+
+```{r supp fig 4, fig.width=10, fig.height=12}
+melt<-melt(compass[compass$Stim=="SEA",], id.vars=c("group","celltype", "TB","Stim"), measure.vars=c("FS", "PFS"))
+
+a<-ggplot(melt[melt$celltype=="CD4",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5), plot.title = element_text(hjust = 0.5)) +
+    facet_grid(~variable)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(title="SEA", subtitle="CD4",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.35))
+
+b<-ggplot(melt[melt$celltype=="CD8",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    facet_grid(~variable)+
+    stat_compare_means(comparisons=list(c("N", "HC")), 
+            label="p.signif", size=8, hid.ns=TRUE, step.increase=0.15, label.y = .3)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(subtitle="CD8",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.35))
+
+c<-ggplot(melt[melt$celltype=="GD",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    facet_grid(~variable)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(subtitle="CD4-CD8-",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+supp5sea<-cowplot::plot_grid(a, b, c, ncol=1, labels=c("A", "B", "C"), label_size=26)
+```
+
+```{r supp fig 4, fig.width=10, fig.height=12}
+melt<-melt(compass[compass$Stim=="SWAP",], id.vars=c("group","celltype", "TB","Stim"), measure.vars=c("FS", "PFS"))
+
+a<-ggplot(melt[melt$celltype=="CD4",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5), plot.title = element_text(hjust = 0.5)) +
+    facet_grid(~variable)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(title="SWAP",subtitle="CD4",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.35))
+
+b<-ggplot(melt[melt$celltype=="CD8",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    stat_compare_means(comparisons=list(c("N", "TB")), 
+            label="p.signif", size=8, hid.ns=TRUE, step.increase=0.15, label.y = .3)+
+    facet_grid(~variable)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(subtitle="CD8",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.35))
+
+c<-ggplot(melt[melt$celltype=="GD",], aes(x=TB, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=20),
+              axis.text.x = element_text(size = 16),
+              strip.text = element_text(size = 20))+
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    facet_grid(~variable)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(subtitle="CD4-CD8-",
+         y="Score",
+         x="")+
+    coord_cartesian(ylim=c(0,.4))
+
+supp5swap<-cowplot::plot_grid(a, b, c, ncol=1, labels=c("D", "E", "F"), label_size=26)
+supp5<-cowplot::plot_grid(supp5sea, supp5swap, nrow=1)
+```
+
+# OG
+
+## Proliferation 
+```{r fig 3}
+include<-subset(CD3, CD3$Stim%in%c("SEA","SWAP"))
+b<-ggplot(include, aes(x=Stim, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~TB)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(label="p.signif", method="wilcox.test", size=8, label.x=1.4, label.y=45)+
+    labs(y="Proliferating\nCD3+ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,50))
+fig3<-cowplot::plot_grid(NULL, b, ncol=1, rel_heights = c(3,4), labels = c("A", "B"), label_size=26)
+
+```
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+datatable<-read.csv("OG_CD3_bulk_summary_clean.csv")
+    datatable<-filter(datatable, Stim %in% c("SEA", "SWAP", "SEB")) #No SM data in primary files
+    datatable<-filter(datatable, SM!="X") #No SM data in primary files
+    datatable<-datatable[!(datatable$Donor %in% remove),]
+    datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+    datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+datatable$Stim<-factor(datatable$Stim, levels=c("SEB", "SEA", "SWAP"))
+
+x<-split(datatable, datatable$Stim)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(OG~TB, g)$p.value)
+
+seaplot<-ggplot(datatable[datatable$Stim=="SEA",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Proliferating CD3+ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,1))
+
+swapplot<-ggplot(datatable[datatable$Stim=="SWAP",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Proliferating CD3+ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,40))
+
+sebplot<-ggplot(datatable[datatable$Stim=="SEB",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Proliferating CD3+ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,80))
+
+supp7<-cowplot::plot_grid(sebplot, seaplot, swapplot, nrow=1, labels=c("A", "B", "C"), label_size = 26)
+```
+
+## Proportion of Proliferating Cells
+P-values
+```{r}
+colnames<-c("CD4", "CD8", "GD")
+include<-subset(CD3_OG, CD3_OG$Stim%in%c("SEA","SWAP"))
+include$id<-paste(include$Donor, include$Stim, sep="_")
+include$celltype<-"CD3"
+test<-merge(include, mimosa, by=c("id", "celltype"))
+test2<-filter(test, test$include==1)
+
+kable(table(test2$Stim, test2$TB))
+
+melt<-melt(test2, id.vars=c("TB", "SM", "Stim"), measure.vars=colnames)
+melt$variable<-gsub("GD", "γδ", melt$variable)
+melt$celltype<-gsub("", "",melt$variable)
+melt$TB<-factor(melt$TB, levels=c("N", "HC", "LTBI", "TB"))
+
+#SEA---> just don't include
+#sea<-melt[melt$Stim=="SEA",]
+#sea$celltype<-factor(sea$celltype)
+#x<-split(sea, sea$TB)
+#lapply(x, function(g) posthoc.kruskal.nemenyi.test(value~celltype, g)$p.value)
+
+#SWAP
+swap<-melt[melt$Stim=="SWAP",]
+swap$celltype<-factor(swap$celltype)
+x<-split(swap, swap$TB)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(value~celltype, g)$p.value)
+```
+
+## Compare cell types
+```{r, fig 4, fig.width=8, fig.height=6}
+b1<-ggplot(swap, aes(x=celltype, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    facet_grid(Stim~TB)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    scale_x_discrete(labels = c("CD4", "CD8", "γδ"))+
+    stat_compare_means(comparisons=list(c("CD8","γδ"), c("CD4", "γδ")),  
+                       hide.ns=TRUE, label="p.signif", size=8, step.increase = .11)+
+    labs(y="Subset of Proliferating T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,130))
+b<-ggplot(swap, aes(x=celltype, y=value))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    facet_grid(~TB)+
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    scale_x_discrete(labels = c("CD4", "CD8", "γδ"))+
+    labs(y="Subset of Proliferating T cells (%)",
+         x="")
+fig4<-cowplot::plot_grid(NULL, b1, nrow=1, rel_widths = c(4,6), labels = c("A", "B"), label_size=26)
+four<-cowplot::plot_grid(NULL, b, nrow=1, rel_heights = c(4,6), labels = c("A", "B"), label_size=26)
+```
+
+
+## GD specific stuff  
+```{r fig 5}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+datatable<-read.csv("OG_CD3_bulk_summary_clean.csv")
+    datatable<-filter(datatable, Stim %in% c("UN", "SWAP")) #No SM data in primary files
+    datatable<-filter(datatable, SM!="X") #No SM data in primary files
+    datatable<-datatable[!(datatable$Donor %in% remove),]
+    datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+    datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+
+unplot<-ggplot(datatable[datatable$Stim=="UN",], aes(x=TB, y=GD))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    theme_classic()+ theme(legend.position="none")+
+    facet_grid(~Stim)+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="γδ T cells (% CD3 T cells)",
+         x="")
+
+
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+datatable<-read.csv("OG_GD_bulk_summary_clean.csv")
+    datatable<-filter(datatable, Stim %in% c("SEA", "SWAP", "SEB")) #No SM data in primary files
+    datatable<-filter(datatable, SM!="X") #No SM data in primary files
+    datatable<-datatable[!(datatable$Donor %in% remove),]
+    datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+    datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+datatable$Stim<-factor(datatable$Stim, levels=c("SEB", "SEA", "SWAP"))
+
+x<-split(datatable, datatable$Stim)
+lapply(x, function(g) posthoc.kruskal.nemenyi.test(OG~TB, g)$p.value)
+
+seaplot<-ggplot(datatable[datatable$Stim=="SEA",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Proliferating γδ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,5))
+
+swapplot<-ggplot(datatable[datatable$Stim=="SWAP",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(comparisons=list(c("N", "LTBI"), c("N","TB")), label="p.signif", size=8, step.increase = 0.07)+
+    labs(y="Proliferating γδ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,106))
+
+sebplot<-ggplot(datatable[datatable$Stim=="SEB",], aes(x=TB, y=OG))+
+    geom_boxplot(aes(fill=TB), size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_wrap(~Stim, scales="free_y")+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(plot.subtitle = element_text(hjust = 0.5)) +
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="Proliferating γδ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,106))
+
+fig5<-cowplot::plot_grid(unplot ,sebplot, seaplot, swapplot, nrow=1, 
+                         labels=c("A", "B", "C", "D"), label_size = 26)
+```
+
+
+```{r fig 6}
+include<-subset(gd_OG, gd_OG$Stim=="SWAP")
+posthoc.kruskal.nemenyi.test(TNFa~TB, include)$p.value
+posthoc.kruskal.nemenyi.test(IFNg~TB, include)$p.value
+posthoc.kruskal.nemenyi.test(IL4~TB, include)$p.value
+
+melt<-melt(include, id.vars=c("TB"), measure.vars=c("TNFa", "IFNg", "IL4"))
+cyt.groups<-as_labeller(c("IL4" = "IL-4", "IFNg" = "IFNγ", "TNFa" = "TNFα"))
+cytokine<-ggplot(melt, aes(x=TB, y=value, fill=TB))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~variable, scales="free", labeller = cyt.groups)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    stat_compare_means(comparisons=list(c("N","TB")), hide.ns=TRUE,
+        label="p.signif", size=8, step.increase = .11)+
+    labs(y="Cytokine+ Proliferating γδ T cells (%)",
+         x="")+
+    coord_cartesian(ylim=c(0,110))
+
+fig6<-cowplot::plot_grid(NULL, cytokine, labels=c("A", "B"), nrow=2, label_size=26)
+```
+
+```{r}
+setwd("/Applications/Old Computer/Day Lab/Flow-Data/clean")
+datatable<-read.csv("OG_gd_OG_summary_clean_NAs.csv")
+datatable<-filter(datatable, Stim %in% c("SEA", "SWAP", "SEB")) #No SM data in primary files
+datatable<-filter(datatable, SM!="X") #No SM data in primary files
+datatable<-datatable[!(datatable$Donor %in% remove),]
+datatable$SM<-factor(datatable$SM, levels=c("N", "SM"))
+datatable$TB<-factor(datatable$TB, levels=c("N", "HC", "LTBI", "TB"))
+datatable$Stim<-factor(datatable$Stim, levels=c("SEB", "SEA", "SWAP"))
+
+include<-subset(datatable, datatable$Stim=="SEB")
+posthoc.kruskal.nemenyi.test(TNFa~TB, include)$p.value
+posthoc.kruskal.nemenyi.test(IFNg~TB, include)$p.value
+posthoc.kruskal.nemenyi.test(IL4~TB, include)$p.value
+
+melt<-melt(include, id.vars=c("TB"), measure.vars=c("TNFa", "IFNg", "IL4"))
+cyt.groups<-as_labeller(c("IL4" = "IL-4", "IFNg" = "IFNγ", "TNFa" = "TNFα"))
+ggplot(melt, aes(x=TB, y=value, fill=TB))+
+    geom_boxplot(size=1, position=position_dodge(width = 1), outlier.shape=NA)+
+    scale_fill_manual(values = c("N" ="#e0e0e0","HC"= "#1a9850" ,"LTBI"= "#2166ac","TB"= "#b2182b"))+
+    facet_grid(~variable, scales="free", labeller = cyt.groups)+
+    theme_classic()+ theme(legend.position="none")+
+    theme(text = element_text(size=26)) + 
+    theme(panel.border = element_rect(fill = NA, colour = "black"))+
+    labs(y="(%) Proliferating γδ T cells",
+         x="")
+```
+
+
+
+```{r}
+prolif<-dplyr::select(gd, Donor, Stim, OG)
+prolif$celltype<-"GD"
+test<-merge(prolif, compass, by=c("Donor", "Stim", "celltype"))
+cyt<-dplyr::select(neg, Donor, Stim, celltype, Cyt.Freq)
+cyt$celltype<-gsub("CD4-CD8-", "GD", cyt$celltype)
+test2<-merge(test, cyt, by=c("Donor", "Stim", "celltype"))
+
+ggplot(test2, aes(x=OG, y=FS))+
+  geom_point()+
+  facet_grid(~Stim)+
+  geom_smooth(method="lm")
+
+ggplot(test2, aes(x=OG, y=Cyt.Freq))+
+  geom_point()+
+  facet_grid(~Stim)+
+  geom_smooth(method="lm")
+
+cor.test(~OG+Cyt.Freq, data=test2, method="spearman")
+cor.test(~OG+Cyt.Freq, data=test2, method="kendall")
+cor.test(~OG+FS, data=test2, method="spearman")
+cor.test(~OG+FS, data=test2, method="kendall")
+```
+
+
+```{r}
+setwd("/Users/tarynam/Desktop/manuscript-sm/")
+save_plot("fig1.png", fig1, base_height = 18, base_width = 15)
+save_plot("fig2.png", fig2, base_height = 16, base_width = 16)
+save_plot("fig3.png", fig3, base_height = 8, base_width = 10)
+save_plot("fig4.png", fig4, base_height = 7, base_width = 18)
+save_plot("fig5.png", fig5, base_height=8, base_width = 24)
+save_plot("fig6.png", fig6, base_height=15, base_width = 12)
+save_plot("supp2.png", supp2, base_height = 6, base_width = 10)
+save_plot("supp3.png", supp3, base_height = 18, base_width = 12)
+save_plot("supp4.png", supp4, base_height = 16, base_width = 15)
+save_plot("supp5.png", supp5, base_height = 16, base_width = 20)
+save_plot("supp6.png", supp6, base_height = 9, base_width = 16)
+save_plot("supp7.png", supp7, base_height = 8, base_width = 16)
+```
+
